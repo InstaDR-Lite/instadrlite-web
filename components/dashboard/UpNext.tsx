@@ -8,9 +8,15 @@ interface Props {
   appointment: Appointment | null;
 }
 
+
 export default function UpNext({ appointment }: Props) {
+
   const {
     session,
+    localStream,
+    remoteStream,
+    localVideoRef,
+    remoteVideoRef,
     startSession,
     endSession,
     toggleMute,
@@ -18,13 +24,17 @@ export default function UpNext({ appointment }: Props) {
     expandFullscreen,
     collapseFullscreen,
   } = useVideoSession();
-
+    
   // State 3 — fullscreen overlay
   if (session.view === 'fullscreen') {
     return (
       <SessionView
         appointment={appointment!}
         session={session}
+        localStream={localStream}
+        remoteStream={remoteStream}
+        localVideoRef={localVideoRef}
+        remoteVideoRef={remoteVideoRef}
         onEnd={endSession}
         onToggleMute={toggleMute}
         onToggleVideo={toggleVideo}

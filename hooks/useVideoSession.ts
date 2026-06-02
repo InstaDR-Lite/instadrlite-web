@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { MediaDanceClient, MediaDanceError } from '@mediadance/client-sdk';
 
-export type SessionStatus = 
+export type SessionStatus =
   | 'idle'
   | 'requesting_token'
   | 'connecting'
@@ -34,12 +35,36 @@ const initial: VideoSession = {
 
 export function useVideoSession() {
   const [session, setSession] = useState<VideoSession>(initial);
-  // const clientRef = useRef<any>(null);
+  const [status, setStatus] = useState('Disconnected');
+
+  const clientRef = useRef<MediaDanceClient | null>(null);
+  const localVideoRef  = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  const [localStream,  setLocalStream]  = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
   const update = (patch: Partial<VideoSession>) =>
     setSession(prev => ({ ...prev, ...patch }));
 
-  async function requestToken(roomId: string): Promise<string> {
+  // Attach streams to video elements when both are ready
+  // Attach local stream when ref becomes available
+  useEffect(() => {
+    if (localStream && localVideoRef.current) {
+      console.log('[Debug] useEffect attaching local stream');
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
+
+  // Attach remote stream when ref becomes available  
+  useEffect(() => {
+    if (remoteStream && remoteVideoRef.current) {
+      console.log('[Debug] useEffect attaching remote stream');
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
+  async function requestToken(roomId: string): Promise<{ token: string; signalingUrl: string }> {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}/token`,
       {
@@ -49,31 +74,56 @@ export function useVideoSession() {
       }
     );
     const data = await res.json();
-    return data.token;
+    console.log('Token response:', data);
+    return { token: data.token, signalingUrl: data.signalingUrl };
   }
 
   async function startSession(roomId: string) {
     try {
-      update({ status: 'requesting_token' });
-      const token = await requestToken(roomId);
+      update({ status: 'requesting_token', view: 'fullscreen' }); // expand first
+      const { token, signalingUrl } = await requestToken(roomId);
 
       update({ status: 'connecting' });
 
-      // SDK connect — wire MediaDance SDK here
-      // clientRef.current = new MediaDanceClient();
-      // clientRef.current.on('local-stream-ready', (stream) => {
-      //   update({ status: 'local_only', localStream: stream });
-      // });
-      // clientRef.current.on('stream-added', (stream) => {
-      //   update({ status: 'active', remoteStream: stream });
-      // });
-      // clientRef.current.on('connection-failed', () => {
-      //   update({ status: 'error', error: 'Connection lost' });
-      // });
-      // await clientRef.current.startCall(token);
+      // Create client
+      clientRef.current = new MediaDanceClient({
+        serverUrl: signalingUrl
+      });
 
-      // Mock for now — remove when SDK wired
-      setTimeout(() => update({ status: 'local_only', localStream: null }), 1000);
+      // Register events immediately after creation
+      clientRef.current.on('local-stream-ready', (stream: MediaStream) => {
+        console.log('[Debug] local-stream-ready fired');
+        setLocalStream(stream);
+        update({ status: 'local_only' });
+        if (localVideoRef.current) {
+          console.log('[Debug] attaching to ref directly');
+          localVideoRef.current.srcObject = stream;
+        } else {
+          console.log('[Debug] ref is null — will attach via useEffect');
+        }
+      });
+
+      clientRef.current.on('remote-stream-ready', (stream: MediaStream) => {
+        console.log('[Debug] remote-stream-ready fired');
+        setRemoteStream(stream);
+        update({ status: 'active' });
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = stream;
+        }
+      });
+
+      clientRef.current.on('status-update', (msg: string) => {
+        console.log('[MediaDance]', msg);
+      });
+
+      clientRef.current.on('error', (err: MediaDanceError) => {
+        if (err.severity === 'FATAL') {
+          update({ status: 'error', error: err.message });
+        }
+      });
+
+      // Start call AFTER events registered
+      await clientRef.current.startCall(token, signalingUrl);
 
     } catch (err: any) {
       update({ status: 'error', error: err.message });
@@ -82,28 +132,40 @@ export function useVideoSession() {
 
   async function endSession() {
     update({ status: 'ending' });
-    // clientRef.current?.disconnect();
-    setTimeout(() => setSession(initial), 1000);
+    try {
+      await clientRef.current?.disconnect();
+    } catch (_) {}
+    setLocalStream(null);
+    setRemoteStream(null);
+    clientRef.current = null;
+    setTimeout(() => setSession(initial), 500);
   }
 
   function toggleMute() {
-    update({ localMuted: !session.localMuted });
+    const track = localStream?.getAudioTracks()[0];
+    if (track) {
+      track.enabled = !track.enabled;
+      update({ localMuted: !session.localMuted });
+    }
   }
 
   function toggleVideo() {
-    update({ videoOff: !session.videoOff });
+    const track = localStream?.getVideoTracks()[0];
+    if (track) {
+      track.enabled = !track.enabled;
+      update({ videoOff: !session.videoOff });
+    }
   }
 
-  function expandFullscreen() {
-    update({ view: 'fullscreen' });
-  }
-
-  function collapseFullscreen() {
-    update({ view: 'compact' });
-  }
+  function expandFullscreen() { update({ view: 'fullscreen' }); }
+  function collapseFullscreen() { update({ view: 'compact' }); }
 
   return {
     session,
+    localStream,    
+    remoteStream,   
+    localVideoRef,
+    remoteVideoRef,
     startSession,
     endSession,
     toggleMute,

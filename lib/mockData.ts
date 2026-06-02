@@ -13,7 +13,7 @@ export interface Appointment {
 export const mockAppointments: Appointment[] = [
   {
     id:           'appt_001',
-    patientName:  'John Doe',
+    patientName:  'John Roberts',
     patientEmail: 'john@example.com',
     startsAt:     new Date(new Date().setHours(9, 0, 0)),
     endsAt:       new Date(new Date().setHours(9, 50, 0)),
