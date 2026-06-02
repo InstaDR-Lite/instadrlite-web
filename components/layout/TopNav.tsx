@@ -71,7 +71,7 @@ export default function TopNav() {
 
         {/* Right — New Appt */}
         <div className="flex justify-end">
-          <button className="border border-[#007A40] px-3 h-[28px] text-[10px] tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8] transition-all">
+          <button className="hidden md:block border border-[#007A40] px-3 h-[28px] text-[10px] tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8] transition-all">
             + new appt
           </button>
         </div>

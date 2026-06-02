@@ -6,11 +6,10 @@ import SessionView from '../session/SessionView';
 
 interface Props {
   appointment: Appointment | null;
+  isMobile?:   boolean;
 }
 
-
-export default function UpNext({ appointment }: Props) {
-
+export default function UpNext({ appointment, isMobile = false }: Props) {
   const {
     session,
     localStream,
@@ -131,7 +130,7 @@ export default function UpNext({ appointment }: Props) {
           session.status === 'connecting') && (
           <div className="flex gap-2 mt-5">
             <button
-              onClick={() => startSession(appointment.roomId)}
+              onClick={() => startSession(appointment.roomId, isMobile)}
               disabled={!canStart || session.status !== 'idle'}
               className={`flex-1 py-3 text-xs tracking-widest uppercase transition-all ${
                 canStart && session.status === 'idle'
@@ -156,7 +155,8 @@ export default function UpNext({ appointment }: Props) {
       </div>
 
       {/* State 2 — video preview when connecting/active */}
-      {(session.status === 'connecting' ||
+      {/* Compact video preview — desktop only */}
+      {!isMobile && (session.status === 'connecting' ||
         session.status === 'local_only' ||
         session.status === 'active') && (
         <div className="flex-1 flex flex-col">

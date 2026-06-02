@@ -78,9 +78,12 @@ export function useVideoSession() {
     return { token: data.token, signalingUrl: data.signalingUrl };
   }
 
-  async function startSession(roomId: string) {
+  async function startSession(roomId: string, skipCompact: boolean = false) {
     try {
-      update({ status: 'requesting_token', view: 'fullscreen' }); // expand first
+      update({ 
+        status: 'requesting_token',
+        view: skipCompact ? 'fullscreen' : 'compact'  // ← key line
+      });
       const { token, signalingUrl } = await requestToken(roomId);
 
       update({ status: 'connecting' });
