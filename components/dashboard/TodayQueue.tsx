@@ -1,23 +1,22 @@
-'use client';
-
-import { useState } from 'react';
-import { mockAppointments, Appointment } from '@/lib/mockData';
+import { Appointment } from '@/app/dashboard/page';
 import AppointmentCard from './AppointmentCard';
 
 interface Props {
-  onSelect: (appt: Appointment) => void;
-  selected: Appointment | null;
+  appointments: Appointment[];
+  onSelect:     (appt: Appointment) => void;
+  selected:     Appointment | null;
 }
 
-export default function TodaysQueue({ onSelect, selected }: Props) {
+export default function TodaysQueue({ appointments, onSelect, selected }: Props) {
   return (
     <div className="flex-1 overflow-y-auto">
-      {mockAppointments.length === 0 ? (
+      {appointments.length === 0 ? (
         <p className="px-5 py-4 text-[11px] text-[#7A9A7A] tracking-widest">
-          No appointments scheduled for today.
+          {/* // no appointments today */}
+          no appointments scheduled for today
         </p>
       ) : (
-        mockAppointments.map(appt => (
+        appointments.map(appt => (
           <AppointmentCard
             key={appt.id}
             appointment={appt}

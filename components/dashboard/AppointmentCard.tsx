@@ -1,5 +1,5 @@
-import { Appointment } from '@/lib/mockData';
 
+import { Appointment } from '@/app/dashboard/page';
 interface Props {
   appointment: Appointment;
   isActive:    boolean;

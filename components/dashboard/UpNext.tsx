@@ -1,6 +1,7 @@
 'use client';
 
-import { Appointment } from '@/lib/mockData';
+
+import { Appointment } from '@/app/dashboard/page';
 import { useVideoSession } from '@/hooks/useVideoSession';
 import SessionView from '../session/SessionView';
 
@@ -116,7 +117,19 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
                 ? 'CHECKING IN...'
                 : 'SCHEDULED'}
             </span>
+            {/* Copy invite link */}
           </div>
+            <div>
+
+              <button
+                onClick={() => navigator.clipboard.writeText(
+                  `${process.env.NEXT_PUBLIC_WEB_URL}/room/${appointment.roomId}`
+                )}
+                className="py-2 border border-[rgba(0,80,40,0.18)] text-[10px] tracking-widest uppercase text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all mb-3"
+              >
+                copy invite link
+              </button>
+            </div>
         </div>
 
 

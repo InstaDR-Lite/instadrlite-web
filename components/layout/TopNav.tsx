@@ -35,7 +35,6 @@ export default function TopNav() {
         </div>
       </div>
 
-      {/* Level 2 — Navigation + Actions */}
 
       {/* Level 2 — Navigation + Actions */}
       <div className="h-[40px] grid grid-cols-3 items-center px-6 border-b border-[rgba(0,80,40,0.18)] bg-[#EDE8DC]">
@@ -70,11 +69,11 @@ export default function TopNav() {
         </div>
 
         {/* Right — New Appt */}
-        <div className="flex justify-end">
+        {/* <div className="flex justify-end">
           <button className="hidden md:block border border-[#007A40] px-3 h-[28px] text-[10px] tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8] transition-all">
             + new appt
           </button>
-        </div>
+        </div> */}
       </div>    
     </div>
   );
