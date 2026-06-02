@@ -112,29 +112,37 @@ export default function UpNext({ appointment }: Props) {
 
 
         {/* START SESSION + Expand */}
-        <div className="flex gap-2 mt-5">
-          <button
-            onClick={() => startSession(appointment.roomId)}
-            disabled={!canStart || session.status === 'connecting'}
-            className={`flex-1 py-3 text-xs tracking-widest uppercase transition-all ${
-              canStart
-                ? 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]'
-                : 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] cursor-not-allowed'
-            }`}
-          >
-            {session.status === 'requesting_token' ? '// requesting token...'
-              : session.status === 'connecting' ? '// connecting...'
-              : canStart ? '[ START SESSION ]'
-              : '// patient not ready'}
-          </button>
+        {/* Only show button when idle or ready
+        // button visible    idle → requesting → connecting
+        // button hidden     local_only → active → ending → ended
+        // end session       lives in fullscreen SessionView only */}
+        {(session.status === 'idle' ||
+          session.status === 'requesting_token' ||
+          session.status === 'connecting') && (
+          <div className="flex gap-2 mt-5">
+            <button
+              onClick={() => startSession(appointment.roomId)}
+              disabled={!canStart || session.status !== 'idle'}
+              className={`flex-1 py-3 text-xs tracking-widest uppercase transition-all ${
+                canStart && session.status === 'idle'
+                  ? 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]'
+                  : 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] cursor-not-allowed'
+              }`}
+            >
+              {session.status === 'requesting_token' ? '// requesting token...'
+                : session.status === 'connecting' ? '// connecting...'
+                : canStart ? '[ START SESSION ]'
+                : '// patient not ready'}
+            </button>
 
-          <button
-            onClick={expandFullscreen}
-            className="border border-[rgba(0,80,40,0.18)] px-3 text-[10px] tracking-widest uppercase text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all"
-          >
-            ↗
-          </button>
-        </div>
+            <button
+              onClick={expandFullscreen}
+              className="border border-[rgba(0,80,40,0.18)] px-3 text-[10px] tracking-widest uppercase text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all"
+            >
+              ↗
+            </button>
+          </div>
+        )}
       </div>
 
       {/* State 2 — video preview when connecting/active */}
