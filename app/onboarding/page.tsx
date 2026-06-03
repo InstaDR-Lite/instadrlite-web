@@ -51,7 +51,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-[#edf1f7] flex items-center justify-center p-4">
-      <div className="w-full max-w-[480px] border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8]">
+      <div className="w-full max-w-[480px] border border-[rgba(0,80,40,0.18)] bg-[#e4eaf4]">
 
         {/* Header */}
         <div className="px-6 py-4 border-b border-[rgba(0,80,40,0.18)] flex items-center justify-between">
@@ -125,7 +125,7 @@ export default function OnboardingPage() {
                 disabled={!form.credentials}
                 className={`w-full py-3 text-xs tracking-widest uppercase transition-all ${
                   form.credentials
-                    ? 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]'
+                    ? 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#e4eaf4]'
                     : 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] cursor-not-allowed'
                 }`}
               >
@@ -200,7 +200,7 @@ export default function OnboardingPage() {
                   disabled={loading || form.licensedStates.length === 0}
                   className={`flex-1 py-3 text-xs tracking-widest uppercase transition-all ${
                     !loading && form.licensedStates.length > 0
-                      ? 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]'
+                      ? 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#e4eaf4]'
                       : 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] cursor-not-allowed'
                   }`}
                 >

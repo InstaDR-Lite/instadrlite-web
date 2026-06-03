@@ -47,7 +47,7 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-[#edf1f7] flex items-center justify-center p-4">
-      <div className="w-full max-w-[400px] border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8]">
+      <div className="w-full max-w-[400px] border border-[rgba(0,80,40,0.18)] bg-[#e4eaf4]">
 
         <div className="px-6 py-4 border-b border-[rgba(0,80,40,0.18)] flex items-center gap-3">
           <span className="border border-[rgba(0,80,40,0.30)] px-2 py-0.5 text-[#007A40] text-xs font-bold">iD</span>
@@ -102,7 +102,7 @@ export default function SignupPage() {
             className={`w-full py-3 text-xs tracking-widest uppercase transition-all ${
               loading
                 ? 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A]'
-                : 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]'
+                : 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#e4eaf4]'
             }`}
           >
             {loading ? '// creating account...' : '[ create account ]'}
