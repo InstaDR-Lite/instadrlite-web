@@ -70,8 +70,9 @@ export function useVideoSession() {
       {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ role: 'host' })
-      }
+        body:    JSON.stringify({ role: 'host' }),
+        credentials: 'include'  // ← add this
+      },
     );
     const data = await res.json();
     console.log('Token response:', data);

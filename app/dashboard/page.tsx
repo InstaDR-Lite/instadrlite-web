@@ -30,7 +30,9 @@ export default function DashboardPage() {
 
   const fetchToday = async () => {
     try {
-      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/today`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/today`, {
+        credentials: 'include'  // ← add this
+      });
       const data = await res.json();
       if (data.success) {
         const appts = data.appointments.map((a: any) => ({

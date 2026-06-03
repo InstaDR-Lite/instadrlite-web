@@ -28,7 +28,9 @@ export default function CalendarPage() {
   const fetchUpcoming = async () => {
     setLoading(true);
     try {
-      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/upcoming`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/upcoming`, {
+        credentials: 'include'
+      });
       const data = await res.json();
       if (data.success) {
         setAppointments(data.appointments.map((a: any) => ({
