@@ -77,7 +77,7 @@ export default function DashboardPage() {
           md:flex
         `}>
           <div className="px-5 py-3 border-b border-[rgba(0,80,40,0.18)] flex items-center gap-2">
-            <span className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">//</span>
+            {/* <span className="text-[10px] tracking-widest uppercase text-[#7A9A7A]"></span> */}
             <span className="text-xs tracking-widest uppercase text-[#3D5C3D]">Today</span>
             <span className="ml-auto text-[10px] font-mono text-[#7A9A7A]">
               {new Date().toLocaleDateString('en-US', {
@@ -88,7 +88,7 @@ export default function DashboardPage() {
           {loading ? (
             <p className="px-5 py-4 text-[11px] text-[#7A9A7A] tracking-widest">
               {/* // loading... */}
-              loading today&apos;s appointments...
+              Loading today&apos;s appointments...
             </p>
           ) : (
             <TodayQueue
@@ -112,11 +112,11 @@ export default function DashboardPage() {
             >
               ← back
             </button>
-            <span className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">//</span>
+            {/* <span className="text-[10px] tracking-widest uppercase text-[#7A9A7A]"></span> */}
             <span className="text-xs tracking-widest uppercase text-[#3D5C3D]">Up Next</span>
             <button
               onClick={() => setShowModal(true)}
-              className="ml-auto hidden md:block border border-[#007A40] px-3 h-[28px] text-[10px] tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8] transition-all"
+              className="ml-auto hidden md:block border border-[#007A40] px-3 h-[28px] text-[10px] tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#edf1f7] transition-all"
             >
               + new appt
             </button>

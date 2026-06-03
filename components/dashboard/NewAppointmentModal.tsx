@@ -77,7 +77,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
       />
 
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-[480px] mx-4 bg-[#F5F0E8] border border-[rgba(0,80,40,0.30)]">
+      <div className="relative z-10 w-full max-w-[480px] mx-4 bg-[#edf1f7] border border-[rgba(0,80,40,0.30)]">
 
         {/* Header */}
         <div className="px-5 py-3 border-b border-[rgba(0,80,40,0.18)] flex items-center justify-between">
@@ -112,7 +112,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
             <div className="flex gap-2">
               <button
                 onClick={copyLink}
-                className="flex-1 py-2.5 border border-[#007A40] text-[10px] tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8] transition-all"
+                className="flex-1 py-2.5 border border-[#007A40] text-[10px] tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#edf1f7] transition-all"
               >
                 copy invite link
               </button>
@@ -231,7 +231,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
                 className={`flex-1 py-3 text-xs tracking-widest uppercase transition-all ${
                   loading
                     ? 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] cursor-not-allowed'
-                    : 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]'
+                    : 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#edf1f7]'
                 }`}
               >
                 {loading ? '// creating...' : '[ create appointment ]'}

@@ -111,7 +111,7 @@ export default function SessionView({
         </button>
         <button
           onClick={onEnd}
-          className="px-6 h-[32px] border border-[#CC2200] text-[10px] tracking-widest uppercase text-[#CC2200] hover:bg-[#CC2200] hover:text-[#F5F0E8] transition-all"
+          className="px-6 h-[32px] border border-[#CC2200] text-[10px] tracking-widest uppercase text-[#CC2200] hover:bg-[#CC2200] hover:text-[#edf1f7] transition-all"
         >
           ✕ end session
         </button>

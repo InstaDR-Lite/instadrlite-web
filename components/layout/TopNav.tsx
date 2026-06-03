@@ -11,7 +11,7 @@ export default function TopNav() {
     <div className="fixed top-0 left-0 right-0 z-50 font-mono">
 
       {/* Level 1 — Identity + Status */}
-      <div className="h-[48px] flex items-center justify-between px-6 border-b border-[rgba(0,80,40,0.18)] bg-[#F5F0E8]">
+      <div className="h-[48px] flex items-center justify-between px-6 border-b border-[rgba(0,80,40,0.18)] bg-[#edf1f7]">
         
         {/* Logo */}
         <div className="flex items-center gap-3">
@@ -37,7 +37,7 @@ export default function TopNav() {
 
 
       {/* Level 2 — Navigation + Actions */}
-      <div className="h-[40px] grid grid-cols-3 items-center px-6 border-b border-[rgba(0,80,40,0.18)] bg-[#EDE8DC]">
+      <div className="h-[40px] grid grid-cols-3 items-center px-6 border-b border-[rgba(0,80,40,0.18)] bg-[#e4eaf4]">
         
         {/* Left — empty spacer */}
         <div />
@@ -70,7 +70,7 @@ export default function TopNav() {
 
         {/* Right — New Appt */}
         {/* <div className="flex justify-end">
-          <button className="hidden md:block border border-[#007A40] px-3 h-[28px] text-[10px] tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8] transition-all">
+          <button className="hidden md:block border border-[#007A40] px-3 h-[28px] text-[10px] tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#edf1f7] transition-all">
             + new appt
           </button>
         </div> */}

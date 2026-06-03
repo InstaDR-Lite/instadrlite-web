@@ -147,7 +147,7 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
               disabled={!canStart || session.status !== 'idle'}
               className={`flex-1 py-3 text-xs tracking-widest uppercase transition-all ${
                 canStart && session.status === 'idle'
-                  ? 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]'
+                  ? 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#edf1f7]'
                   : 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] cursor-not-allowed'
               }`}
             >
