@@ -39,6 +39,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',   
         body: JSON.stringify({
           patientName:   form.patientName,
           patientEmail:  form.patientEmail,
@@ -51,6 +52,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
       const data = await res.json();
 
       if (!data.success) throw new Error(data.error);
+      console.log('Created appointment:', data.appointment.inviteLink);
 
       setInviteLink(data.appointment.inviteLink);
       onCreated(data.appointment);
@@ -82,7 +84,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
         {/* Header */}
         <div className="px-5 py-3 border-b border-[rgba(0,80,40,0.18)] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-[#7A9A7A] tracking-widest">//</span>
+            
             <span className="text-xs tracking-widest uppercase text-[#3D5C3D]">
               New Appointment
             </span>
@@ -99,8 +101,9 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
         {inviteLink ? (
           <div className="p-6">
             <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-2">
-              // appointment created
+               New appointment and invite link created
             </div>
+            
             <div className="text-sm text-[#1A2E1A] font-semibold tracking-wide mb-4">
               Invite link ready for {form.patientName}
             </div>
@@ -117,7 +120,12 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
                 copy invite link
               </button>
               <button
-                onClick={onClose}
+                onClick={
+                  () => {
+                    onClose();
+                    setInviteLink(null);
+                  }
+                }
                 className="flex-1 py-2.5 border border-[rgba(0,80,40,0.18)] text-[10px] tracking-widest uppercase text-[#7A9A7A] hover:text-[#1A2E1A] transition-all"
               >
                 done
@@ -219,7 +227,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
             {/* Error */}
             {error && (
               <div className="text-[11px] text-[#CC2200] tracking-wide font-mono">
-                // error: {error}
+                error: {error}
               </div>
             )}
 

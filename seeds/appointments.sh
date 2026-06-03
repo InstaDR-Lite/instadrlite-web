@@ -1,12 +1,12 @@
 #!/bin/bash
-API="http://localhost:4000/api/appointments"
+API="https://localhost:4000/api/appointments"
 COOKIES="cookies.txt"
 
 # Login first
-curl -s -X POST http://localhost:4000/api/auth/login \
+curl -s -X POST https://localhost:4000/api/auth/login \
   -H "Content-Type: application/json" \
   -c $COOKIES \
-  -d '{"email":"dr.lewis@example.com","password":"test1234"}'
+  -d '{"email":"rp2701.dev@gmail.com","password":"test1234"}'
 
 echo "Logged in, seeding appointments..."
 

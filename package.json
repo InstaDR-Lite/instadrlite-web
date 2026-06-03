@@ -9,11 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@mediadance/client-sdk": "file:../../mediadance/telehealth-sdk",
+    "bcryptjs": "^3.0.3",
     "next": "16.2.7",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "tailwind": "^4.0.0",
-     "@mediadance/client-sdk": "file:../../mediadance/telehealth-sdk"
+    "tailwind": "^4.0.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

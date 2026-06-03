@@ -50,7 +50,10 @@ export default function DashboardPage() {
     }
   };
 
-  useEffect(() => { fetchToday(); }, []);
+  useEffect(() => {
+    fetchToday();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSelect = (appt: Appointment) => {
     setSelected(appt);
@@ -59,7 +62,7 @@ export default function DashboardPage() {
 
   const handleCreated = (appt: any) => {
     fetchToday(); // refresh list
-    setShowModal(false);
+
   };
 
   return (
