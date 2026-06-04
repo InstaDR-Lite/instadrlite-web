@@ -55,6 +55,12 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(fetchToday, 10000); // every 10s
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSelect = (appt: Appointment) => {
     setSelected(appt);
     setMobileView('detail');

@@ -79,16 +79,20 @@ export function useVideoSession() {
     return { token: data.token, signalingUrl: data.signalingUrl };
   }
 
-  async function startSession(roomId: string, skipCompact: boolean = false) {
+  async function startSession(roomId: string, skipCompact = false) {
     try {
-      update({ 
-        status: 'requesting_token',
-        view: skipCompact ? 'fullscreen' : 'compact'  // ← key line
-      });
+      update({ status: 'requesting_token', view: skipCompact ? 'fullscreen' : 'compact' });
       const { token, signalingUrl } = await requestToken(roomId);
 
-      update({ status: 'connecting' });
-
+      // Update appointment status to in_session
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/room/${roomId}/status`, {
+        method:      'POST',
+        headers:     { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body:        JSON.stringify({ status: 'in_session' })
+      });
+      // After the status update fetch
+      console.log('[Provider] Updated status to in_session for room:', roomId);
       // Create client
       clientRef.current = new MediaDanceClient({
         serverUrl: signalingUrl
