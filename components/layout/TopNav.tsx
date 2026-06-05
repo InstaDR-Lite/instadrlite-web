@@ -2,7 +2,11 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 
-export default function TopNav() {
+interface TopNavProps {
+  onSettingsOpen?: () => void;
+}
+
+export default function TopNav({ onSettingsOpen }: TopNavProps) {
   const pathname = usePathname();
   const isDash   = pathname === '/dashboard';
   const router = useRouter();
@@ -29,7 +33,10 @@ export default function TopNav() {
             <span className="w-1.5 h-1.5 rounded-full bg-[#007A40] animate-pulse" />
             sys:online
           </div>
-          <button className="w-7 h-7 border border-[rgba(0,80,40,0.18)] flex items-center justify-center text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all text-xs">
+          <button
+            className="w-7 h-7 border border-[rgba(0,80,40,0.18)] flex items-center justify-center text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all text-xs"
+            onClick={onSettingsOpen}
+          >
             ⚙
           </button>
         </div>
