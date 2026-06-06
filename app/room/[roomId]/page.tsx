@@ -3,6 +3,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import CopayForm from '@/components/patient/CopayForm';
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 // Add 'session' to GateStep type
 type GateStep = 'loading' | 'too_early' | 'expired' | 'name' | 'consent' | 'camera' | 'geo' | 'copay' | 'waiting' | 'session';
@@ -72,27 +77,28 @@ function Shell({
 }
 
 export default function PatientGatePage() {
-  const params  = useParams();
-  const roomId  = params.roomId as string;
+  const params = useParams();
+  const roomId = params.roomId as string;
 
-  const [step,        setStep]        = useState<GateStep>('loading');
+  const [step, setStep] = useState<GateStep>('loading');
   const [appointment, setAppointment] = useState<AppointmentData | null>(null);
-  const [error,       setError]       = useState<string | null>(null);
-  const [geoStatus,   setGeoStatus]   = useState<'pending' | 'verified' | 'failed'>('pending');
-  const [geoState,    setGeoState]    = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [geoStatus, setGeoStatus] = useState<'pending' | 'verified' | 'failed'>('pending');
+  const [geoState, setGeoState] = useState<string | null>(null);
   const [consentChecked, setConsentChecked] = useState(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const videoRef = useState<HTMLVideoElement | null>(null);
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
-  const clientRef      = useRef<any>(null);
+  const clientRef = useRef<any>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
 
-   const connectToSession = async () => {
+  const connectToSession = async () => {
     try {
-      const res  = await fetch(
+      const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/room/${roomId}/guest-token`,
         { method: 'POST' }
       );
@@ -118,11 +124,11 @@ export default function PatientGatePage() {
     } catch (err: any) {
       console.error('[Patient SDK]', err.message);
     }
-   };
+  };
   
   const fetchAppointment = async () => {
     try {
-      const res  = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/room/${roomId}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/room/${roomId}`);
       const data = await res.json();
 
       if (!data.success) throw new Error(data.error);
@@ -143,6 +149,16 @@ export default function PatientGatePage() {
       setError(err.message);
     }
   };
+  const initCopayStep = async () => {
+    const res  = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/payment-intent`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ appointmentId: appointment?.id })
+    });
+    const data = await res.json();
+    setClientSecret(data.clientSecret);
+    setStep('copay');
+  };
 
   useEffect(() => {
     fetchAppointment();
@@ -154,7 +170,7 @@ export default function PatientGatePage() {
 
     
     const interval = setInterval(async () => {
-      const res  = await fetch(
+      const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/room/${roomId}`
       );
       const data = await res.json();
@@ -173,8 +189,6 @@ export default function PatientGatePage() {
     return () => clearInterval(interval);
   }, [step]);
 
-
- 
 
   /**
    * Handles geolocation verification by:
@@ -202,14 +216,10 @@ export default function PatientGatePage() {
           );
           const data = await res.json();
 
-          console.log('[Geo] Raw response:', data);
-          console.log('[Geo] State code:', data.address?.state_code);
-          console.log('[Geo] State:', data.address?.state);
-
-          const state     = data.address?.state_code || data.address?.state;
+          const state = data.address?.state_code || data.address?.state;
           const stateAbbr = STATE_MAP[state as string] || state;
-          const licensed  = appointment?.provider.licensed_states || [];
-          const verified  = licensed.some(s =>
+          const licensed = appointment?.provider.licensed_states || [];
+          const verified = licensed.some(s =>
             s.toUpperCase() === stateAbbr?.toUpperCase()
           );
 
@@ -218,16 +228,16 @@ export default function PatientGatePage() {
 
           // Update appointment geo status
           await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointment?.id}/geo`, {
-            method:  'POST',
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ verified, state })
+            body: JSON.stringify({ verified, state })
           });
 
           // In handleGeoVerify — before setStep('waiting')
           await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointment?.id}/status`, {
-            method:  'POST',
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ status: 'ready' })
+            body: JSON.stringify({ status: 'ready' })
           });
 
         } catch {
@@ -235,10 +245,14 @@ export default function PatientGatePage() {
         }
 
         // Continue to next step regardless
-        setTimeout(() => {
+        setTimeout(async () => {
           const needsCopay = appointment?.paymentAmount &&
-                             appointment?.paymentStatus !== 'paid';
-          setStep(needsCopay ? 'copay' : 'waiting');
+            appointment?.paymentStatus !== 'paid';
+          if (needsCopay) {
+            await initCopayStep();
+          } else {
+            setStep('waiting');
+          }
         }, 1500);
       },
       () => {
@@ -264,9 +278,9 @@ export default function PatientGatePage() {
 
   const handleConsent = async () => {
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointment?.id}/consent`, {
-      method:  'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ signed: true })
+      body: JSON.stringify({ signed: true })
     });
     setStep('camera');
   };
@@ -370,11 +384,10 @@ export default function PatientGatePage() {
       <button
         onClick={handleConsent}
         disabled={!consentChecked}
-        className={`w-full py-3 text-xs tracking-widest uppercase transition-all ${
-          consentChecked
+        className={`w-full py-3 text-xs tracking-widest uppercase transition-all ${consentChecked
             ? 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]'
             : 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] cursor-not-allowed'
-        }`}
+          }`}
       >
         [ sign and continue → ]
       </button>
@@ -416,17 +429,15 @@ export default function PatientGatePage() {
       <div className="text-lg font-semibold text-[#1A2E1A] mb-4">Verifying location</div>
 
       <div className="flex flex-col gap-3">
-        <div className={`flex items-center gap-2 text-[11px] font-mono ${
-          geoStatus === 'pending'  ? 'text-[#7A9A7A]' :
-          geoStatus === 'verified' ? 'text-[#007A40]' : 'text-[#CC2200]'
-        }`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${
-            geoStatus === 'pending'  ? 'bg-[#7A9A7A] animate-pulse' :
-            geoStatus === 'verified' ? 'bg-[#007A40]' : 'bg-[#CC2200]'
-          }`} />
-          {geoStatus === 'pending'  && '// verifying location...'}
+        <div className={`flex items-center gap-2 text-[11px] font-mono ${geoStatus === 'pending' ? 'text-[#7A9A7A]' :
+            geoStatus === 'verified' ? 'text-[#007A40]' : 'text-[#CC2200]'
+          }`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${geoStatus === 'pending' ? 'bg-[#7A9A7A] animate-pulse' :
+              geoStatus === 'verified' ? 'bg-[#007A40]' : 'bg-[#CC2200]'
+            }`} />
+          {geoStatus === 'pending' && '// verifying location...'}
           {geoStatus === 'verified' && `✓ Location verified — ${geoState}`}
-          {geoStatus === 'failed'   && `⚠ Location outside licensed states`}
+          {geoStatus === 'failed' && `⚠ Location outside licensed states`}
         </div>
 
         {geoStatus === 'failed' && (
@@ -436,6 +447,31 @@ export default function PatientGatePage() {
         )}
       </div>
     </Shell>
+    );
+
+    if (step === 'copay') return (
+      <Shell providerName={appointment?.provider.name}>
+        <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">
+          copay required
+        </div>
+        <div className="text-lg font-semibold text-[#1A2E1A] mb-2">Session fee</div>
+        <p className="text-sm text-[#7A9A7A] font-mono mb-6">
+          A copay of{' '}
+          <span className="text-[#007A40]">${appointment?.paymentAmount}</span>
+          {' '}is required before your session.
+        </p>
+        {clientSecret && (
+          <Elements
+            stripe={stripePromise}
+            options={{ clientSecret, appearance: { theme: 'flat' } }}
+          >
+            <CopayForm
+              paymentAmount={Number(appointment?.paymentAmount)}
+              onSuccess={() => setStep('waiting')}
+            />
+          </Elements>
+        )}
+      </Shell>
   );
 
   // ── Waiting room ─────────────────────────────────────────────────────
