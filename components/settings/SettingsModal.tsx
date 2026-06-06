@@ -17,8 +17,14 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'integrations', label: 'Integrations' },
 ];
 
-export default function SettingsModal({ onClose }: { onClose: () => void }) {
-  const [activeTab, setActiveTab] = useState<Tab>('profile');
+export default function SettingsModal({
+  onClose,
+  defaultTab = 'profile'
+}: {
+    onClose: () => void
+    defaultTab?: Tab
+}) {
+  const [activeTab, setActiveTab] = useState<Tab>(defaultTab);
 
   return (
     <div className="fixed inset-0 z-[150] flex">
@@ -31,7 +37,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
         {/* Left nav */}
         <div className="w-[200px] flex-shrink-0 border-r border-[rgba(0,80,40,0.18)] flex flex-col">
           <div className="px-5 py-3 border-b border-[rgba(0,80,40,0.18)] flex items-center justify-between">
-            <span className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">// settings</span>
+            <span className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">settings</span>
             <button
               onClick={onClose}
               className="text-[#7A9A7A] hover:text-[#1A2E1A] text-sm transition-all"
