@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
@@ -14,12 +14,20 @@ const CREDENTIALS_BY_TYPE: Record<string, string[]> = {
   np:         ['NP', 'RN', 'PA', 'MD', 'DO', 'Other'],
 };
 
+const PLACEHOLDERS: Record<string, string> = {
+  doctor: "dr.lewis",
+  therapist: "lewis.therapy",
+  coach: "lewis.coaching",
+  nurse_practitioner: "lewis.np", // or whatever your 4 exact provider keys are
+};
 
 export default function OnboardingPage() {
   const router  = useRouter();
   const [step,    setStep]    = useState(0);
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isAuthorizing, setIsAuthorizing] = useState(true);
+  
   const [form, setForm] = useState({
     providerType:   '',
     credentials:    '',
@@ -65,6 +73,87 @@ export default function OnboardingPage() {
       setLoading(false);
     }
   };
+
+
+  /**
+   * This useEffect is the gatekeeper to the entire onboarding flow. It checks if the user has access to this page by either:
+   * 1. Just returned from a successful Stripe checkout session (indicated by a URL query param)
+   * 2. Has a valid promo code that bypasses the paywall (stored in localStorage by the signup page)
+   * 
+   * If neither condition is met, it immediately redirects them to the Stripe checkout flow.
+   */
+  useEffect(() => {
+    const evaluateAccessPipeline = async () => {
+
+      // 1. Check if they just returned from a successful Stripe checkout session
+    const urlParams = new URLSearchParams(window.location.search);
+    const isJustSubscribed = urlParams.get('subscribed') === 'true';
+
+    if (isJustSubscribed) {
+      console.log("🎉 User returned from successful Stripe checkout. Granting access!");
+      
+      // OPTIONAL: Clean up the URL query param so a manual reload doesn't get weird
+      // window.history.replaceState({}, document.title, window.location.pathname);
+      
+      setIsAuthorizing(false);
+      return; // Exit early! Do not pass go, do not redirect to Stripe.
+    }
+      
+      // 1. Snag any pending promo code left in storage by the signup card
+      const pendingPromo = localStorage.getItem('pending_promo_code');
+
+      if (pendingPromo) {
+        try {
+          // 2. Validate it against your single endpoint
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/validate-promo`, {
+            method:      'POST',
+            headers:     { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body:        JSON.stringify({ code: pendingPromo })
+          });
+          
+          const promoData = await res.json();
+
+          if (promoData.valid) {
+            console.log("🎟️ Valid promo code applied. Bypassing Stripe paywall.");
+            
+            // Clean up the storage so it doesn't fire again on a reload
+            localStorage.removeItem('pending_promo_code');
+                  
+            // Allow them to stay here and render the actual onboarding setup UI
+            setIsAuthorizing(false);
+            return;
+          }
+        } catch (err) {
+          console.error("Failed to process gatekeeper promo validation:", err);
+        }
+      }
+
+      // Get checkout URL immediately after signup
+      const checkoutRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/subscription/checkout`, {
+        method:      'POST',
+        headers:     { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body:        JSON.stringify({ plan: localStorage.getItem('selected_plan') || 'monthly' })
+      });
+      const checkoutData = await checkoutRes.json();
+      window.location.href = checkoutData.url;  // → Stripe Checkout
+    };
+
+    evaluateAccessPipeline();
+  }, []);
+  
+  // While the useEffect is talking to the DB/Stripe, show a clean, high-end loading state
+  if (isAuthorizing) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-black font-mono text-xs text-neutral-400">
+        <div className="flex items-center gap-3">
+          <span className="h-2 w-2 animate-ping rounded-full bg-emerald-500" />
+          <span>VERIFYING ACCOUNT PROFILE ACCESS LEVEL...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#edf1f7] flex items-center justify-center p-4">
@@ -243,7 +332,7 @@ export default function OnboardingPage() {
                     type="text"
                     value={form.slug}
                     onChange={e => setForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9.-]/g, '') }))}
-                    placeholder="dr.lewis"
+                    placeholder={PLACEHOLDERS[form.providerType] || "alisa-lewis"}
                     className="flex-1 px-3 py-2 bg-transparent text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none"
                   />
                 </div>
@@ -278,7 +367,7 @@ export default function OnboardingPage() {
           <>
             <div className="p-6 flex flex-col gap-4"> 
               <div>
-                <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">// step 3 of 3</div>
+                {/* <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">// step 3 of 3</div> */}
                 <div className="text-lg font-semibold text-[#1A2E1A]">How do you accept payments?</div>
                 <p className="text-[11px] text-[#7A9A7A] font-mono mt-1">You can change this anytime in Settings.</p>
               </div>

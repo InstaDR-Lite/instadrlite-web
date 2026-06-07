@@ -1,23 +1,50 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+
+import { useSearchParams } from 'next/navigation';
+
 
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [form, setForm] = useState({
     name: '', email: '', password: '', confirmPassword: ''
   });
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState('');
+  
+  const plan = searchParams.get('plan') || 'monthly';
+  
+  useEffect(() => {
+    //  SAFE: Next.js guarantees useEffect ONLY runs on the client after mounting
+    localStorage.setItem('selected_plan', plan);
+    
+    // 
+    if (promoCode) {
+      localStorage.setItem('pending_promo_code', promoCode);
+    }
+  }, [plan, promoCode]);
+  
+  /**
+   * Handles the signup process for new users. It first checks if the password and confirm password fields match. 
+   * If they don't, it sets an error message and exits. If they do match, it proceeds to send a POST request 
+   * to the backend API with the user's name, email, and password. If a promo code is entered, it saves it 
+   * to localStorage before making the API call. Upon successful signup, it redirects the user to the onboarding 
+   * page. If there's an error during the process, it catches it and displays the error message.   
+   * @returns 
+  */
+ const handleSignup = async () => {
 
-  const handleSignup = async () => {
     if (form.password !== form.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
     setLoading(true);
     setError(null);
+
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/signup`, {
         method:      'POST',
@@ -29,17 +56,20 @@ export default function SignupPage() {
           password: form.password
         })
       });
+
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
-      router.push('/onboarding');
+      
+      router.push('/onboarding'); 
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
-
+ };
+  
   const handleGoogle = async () => {
+
     const res  = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/login`);
     const data = await res.json();
     window.location.href = data.url;
@@ -60,6 +90,22 @@ export default function SignupPage() {
               Provider signup
             </div>
             <div className="text-lg font-semibold text-[#1A2E1A]">Create your account</div>
+          </div>
+
+          <span className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1"> 
+            Have a promo code? 
+          </span>
+          <input
+            type="text"
+            placeholder="Promo code (optional)"
+            value={promoCode}
+            onChange={e => setPromoCode(e.target.value.toUpperCase())}
+            className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all"
+          />
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-[rgba(0,80,40,0.12)]" />
+            {/* <span className="text-[10px] text-[#7A9A7A] tracking-widest">or</span> */}
+            <div className="flex-1 h-px bg-[rgba(0,80,40,0.12)]" />
           </div>
 
           <button
@@ -96,17 +142,19 @@ export default function SignupPage() {
             <div className="text-[11px] text-[#CC2200] font-mono">Error: {error}</div>
           )}
 
+
           <button
             onClick={handleSignup}
             disabled={loading}
             className={`w-full py-3 text-xs tracking-widest uppercase transition-all ${
               loading
-                ? 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A]'
-                : 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#e4eaf4]'
+              ? 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A]'
+              : 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#e4eaf4]'
             }`}
           >
             {loading ? '// creating account...' : '[ create account ]'}
           </button>
+          
 
           <div className="text-center text-[11px] text-[#7A9A7A] tracking-wide">
             Already have an account?{' '}
