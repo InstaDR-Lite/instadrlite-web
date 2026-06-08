@@ -56,7 +56,7 @@ export default function PaymentsTab() {
       </div>
 
       {/* Section 1 — Static Link */}
-      <div className="border border-[rgba(0,80,40,0.18)] p-4 flex flex-col gap-3">
+      {/* <div className="border border-[rgba(0,80,40,0.18)] p-4 flex flex-col gap-3">
         <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase">
            section 1 — perimeter management
         </div>
@@ -79,12 +79,12 @@ export default function PaymentsTab() {
             copy
           </button>
         </div>
-      </div>
+      </div> */}
 
       {/* Section 2 — Financial Routing */}
       <div className="border border-[rgba(0,80,40,0.18)] p-4 flex flex-col gap-4">
         <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase">
-          section 2 — financial routing architecture
+         Financial routing architecture
         </div>
         <div className="text-xs text-[#3D5C3D] font-mono">
           Choose how your practice processes session fees.
