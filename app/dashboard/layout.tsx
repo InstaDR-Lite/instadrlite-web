@@ -13,21 +13,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 
   useEffect(() => {
-    const settings   = searchParams.get('settings');
-    const error      = searchParams.get('error');
+    const settings  = searchParams.get('settings');
+    const sessionId = searchParams.get('session_id');
+    const error     = searchParams.get('error');
 
-    setTimeout(() => {
+    setTimeout(async () => {
+      // Check subscription status if session_id present
+      if (sessionId) {
+        await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/stripe/subscription/status?session_id=${sessionId}`,
+          { credentials: 'include' }
+        );
+      }
+
       if (settings) {
         setDefaultTab(settings);
         setShowSettings(true);
-        router.replace('/dashboard');
       }
 
       if (error === 'connect_failed') {
         setDefaultTab('payments');
         setShowSettings(true);
-        router.replace('/dashboard');
       }
+
+      if (settings || error) router.replace('/dashboard');
     }, 0);
   }, [router, searchParams]);
 
