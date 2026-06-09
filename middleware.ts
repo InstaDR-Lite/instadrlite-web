@@ -11,10 +11,7 @@ export function middleware(req: NextRequest) {
   }
 
   // Check session cookie
-  // const session = req.cookies.get('session');
- 
-  // Check for the local frontend domain cookie flag
-  const session = req.cookies.get('local_session');
+  const session = req.cookies.get('session');
   if (!session) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
