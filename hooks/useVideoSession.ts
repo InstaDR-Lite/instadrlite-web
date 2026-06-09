@@ -1,7 +1,21 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-// import { MediaDanceClient, MediaDanceError } from '@mediadance/client-sdk';
+// import {  MediaDanceError } from '@mediadance/client-sdk';
+
+// Remove the import and define locally:
+interface MediaDanceError {
+  message:  string;
+  code?:    string;
+  severity?: string;
+}
+
+interface MediaDanceClientInstance {
+  on:          (event: string, handler: (...args: any[]) => void) => void;
+  startCall:   (token: string, signalingUrl: string) => Promise<MediaStream>;
+  disconnect?: () => Promise<void>;
+}
+
 
 export type SessionStatus =
 | 'idle'
@@ -37,8 +51,9 @@ export function useVideoSession() {
   
   const [session, setSession] = useState<VideoSession>(initial);
   const [status, setStatus] = useState('Disconnected');
+  
 
-  const clientRef = useRef<MediaDanceClient | null>(null);
+  const clientRef = useRef<MediaDanceClientInstance | null>(null);
   const localVideoRef  = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -81,11 +96,10 @@ export function useVideoSession() {
   }
 
   async function startSession(roomId: string, skipCompact = false) {
-    const { MediaDanceClient } = await import('@mediadance/client-sdk');
     try {
       update({ status: 'requesting_token', view: skipCompact ? 'fullscreen' : 'compact' });
       const { token, signalingUrl } = await requestToken(roomId);
-
+      
       // Update appointment status to in_session
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/room/${roomId}/status`, {
         method:      'POST',
@@ -96,12 +110,13 @@ export function useVideoSession() {
       // After the status update fetch
       console.log('[Provider] Updated status to in_session for room:', roomId);
       // Create client
+      const { MediaDanceClient } = await import('@mediadance/client-sdk');
       clientRef.current = new MediaDanceClient({
         serverUrl: signalingUrl
       });
 
       // Register events immediately after creation
-      clientRef.current.on('local-stream-ready', (stream: MediaStream) => {
+      clientRef.current?.on('local-stream-ready', (stream: MediaStream) => {
         console.log('[Debug] local-stream-ready fired');
         setLocalStream(stream);
         update({ status: 'local_only' });
@@ -113,7 +128,7 @@ export function useVideoSession() {
         }
       });
 
-      clientRef.current.on('remote-stream-ready', (stream: MediaStream) => {
+      clientRef.current?.on('remote-stream-ready', (stream: MediaStream) => {
         console.log('[Debug] remote-stream-ready fired');
         setRemoteStream(stream);
         update({ status: 'active' });
@@ -122,18 +137,18 @@ export function useVideoSession() {
         }
       });
 
-      clientRef.current.on('status-update', (msg: string) => {
+      clientRef.current?.on('status-update', (msg: string) => {
         console.log('[MediaDance]', msg);
       });
 
-      clientRef.current.on('error', (err: MediaDanceError) => {
+      clientRef.current?.on('error', (err: MediaDanceError) => {
         if (err.severity === 'FATAL') {
           update({ status: 'error', error: err.message });
         }
       });
 
       // Start call AFTER events registered
-      await clientRef.current.startCall(token, signalingUrl);
+      await clientRef.current?.startCall(token, signalingUrl);
 
     } catch (err: any) {
       update({ status: 'error', error: err.message });
@@ -143,7 +158,7 @@ export function useVideoSession() {
   async function endSession() {
     update({ status: 'ending' });
     try {
-      await clientRef.current?.disconnect();
+      await clientRef.current?.disconnect?.();
     } catch (_) {}
     setLocalStream(null);
     setRemoteStream(null);
