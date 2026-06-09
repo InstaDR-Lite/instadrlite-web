@@ -2,17 +2,16 @@
 
 import { useState, useRef, useEffect } from 'react';
 // import { MediaDanceClient, MediaDanceError } from '@mediadance/client-sdk';
-const { MediaDanceClient } = await import('@mediadance/client-sdk');
 
 export type SessionStatus =
-  | 'idle'
-  | 'requesting_token'
-  | 'connecting'
-  | 'local_only'
-  | 'active'
-  | 'ending'
-  | 'ended'
-  | 'error';
+| 'idle'
+| 'requesting_token'
+| 'connecting'
+| 'local_only'
+| 'active'
+| 'ending'
+| 'ended'
+| 'error';
 
 export interface VideoSession {
   status:       SessionStatus;
@@ -35,6 +34,7 @@ const initial: VideoSession = {
 };
 
 export function useVideoSession() {
+  
   const [session, setSession] = useState<VideoSession>(initial);
   const [status, setStatus] = useState('Disconnected');
 
@@ -81,6 +81,7 @@ export function useVideoSession() {
   }
 
   async function startSession(roomId: string, skipCompact = false) {
+    const { MediaDanceClient } = await import('@mediadance/client-sdk');
     try {
       update({ status: 'requesting_token', view: skipCompact ? 'fullscreen' : 'compact' });
       const { token, signalingUrl } = await requestToken(roomId);
