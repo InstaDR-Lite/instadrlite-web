@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { MediaDanceClient, MediaDanceError } from '@mediadance/client-sdk';
+// import { MediaDanceClient, MediaDanceError } from '@mediadance/client-sdk';
+const { MediaDanceClient } = await import('@mediadance/client-sdk');
 
 export type SessionStatus =
   | 'idle'
