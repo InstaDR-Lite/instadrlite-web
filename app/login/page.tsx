@@ -21,7 +21,10 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
-      router.push('/dashboard');
+      // Use a unique name for the Vercel domain flag
+      document.cookie = "local_session=true; path=/; max-age=86400; secure; samesite=lax";
+
+      window.location.href = '/dashboard';
     } catch (err: any) {
       setError(err.message);
     } finally {
