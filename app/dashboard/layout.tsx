@@ -3,19 +3,32 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import TopNav from '@/components/layout/TopNav';
 import SettingsModal from '@/components/settings/SettingsModal';
+import { Suspense } from 'react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+
+  return (
+    <Suspense fallback={null}>
+
+      <DashboardLayoutInner>
+        {children}
+      </DashboardLayoutInner>
+    </Suspense>
+  )
+}
+
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [showSettings, setShowSettings] = useState(false);
-  const [defaultTab,   setDefaultTab]   = useState<string>('profile');
+  const [defaultTab, setDefaultTab] = useState<string>('profile');
   const searchParams = useSearchParams();
 
   const router = useRouter();
 
 
   useEffect(() => {
-    const settings  = searchParams.get('settings');
+    const settings = searchParams.get('settings');
     const sessionId = searchParams.get('session_id');
-    const error     = searchParams.get('error');
+    const error = searchParams.get('error');
 
     setTimeout(async () => {
       // Check subscription status if session_id present
