@@ -1,6 +1,7 @@
 'use client';
 
-import { Appointment } from '@/lib/mockData';
+
+import { Appointment } from '@/app/dashboard/page';
 import { VideoSession } from '@/hooks/useVideoSession';
 import { RefObject, useEffect } from 'react';
 
