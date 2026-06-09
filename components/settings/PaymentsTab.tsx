@@ -2,8 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 export default function PaymentsTab() {
+
+  return (
+    <Suspense fallback={null}>
+      <PaymentsInner />
+    </Suspense>
+  )
+
+}
+function PaymentsInner() {
+
   const searchParams  = useSearchParams();
   const [provider,    setProvider]    = useState<any>(null);
   const [loading,     setLoading]     = useState(true);

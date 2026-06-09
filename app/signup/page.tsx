@@ -1,12 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { useSearchParams } from 'next/navigation';
 
 
 export default function SignupPage() {
+
+  return (
+
+  <Suspense fallback={null}>
+    <SignupInner />
+  </Suspense>
+  )
+}
+
+function SignupInner() {
+  
   const router = useRouter();
   const searchParams = useSearchParams();
   const [form, setForm] = useState({
