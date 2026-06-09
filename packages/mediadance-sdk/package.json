@@ -1,0 +1,26 @@
+{
+  "name": "@mediadance/client-sdk",
+  "version": "0.1.0",
+  "description": "Client-side SDK for building high-velocity telehealth and video applications using MediaDance infrastructure.",
+  "main": "./dist/index.js",
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "keywords": [
+    "webrtc",
+    "telehealth",
+    "mediadance",
+    "sdk"
+  ],
+  "author": "Rupesh Pandey",
+  "license": "ISC",
+  "dependencies": {
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

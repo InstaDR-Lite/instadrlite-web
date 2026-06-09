@@ -1,0 +1,58 @@
+// telehealth-sdk/src/managers/MediaManager.ts
+
+export class MediaManager {
+  private localStream: MediaStream | null = null;
+
+  /**
+   * Captures the local device tracks securely with hardware optimizations and clean cancellation rails
+   */
+  public async captureLocalStream(video: boolean = true, audio: boolean = true): Promise<MediaStream> {
+    if (typeof window === 'undefined') {
+      throw new Error('Media capture cannot be executed on the server-side.');
+    }
+
+    try {
+      this.localStream = await navigator.mediaDevices.getUserMedia({
+        audio: audio ? { 
+          echoCancellation: true, 
+          noiseSuppression: true 
+        } : false,
+        video: video ? { 
+          width: { ideal: 1280 }, 
+          height: { ideal: 720 }, 
+          frameRate: { ideal: 24 } 
+        } : false
+      });
+      
+      return this.localStream;
+    } catch (error: any) {
+      console.error('SDK MediaManager: Error accessing hardware lines', error);
+      
+      // Map cryptic native browser exceptions to clean, actionable SDK error states
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        throw new Error('HARDWARE_PERMISSION_BLOCKED');
+      }
+      if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        throw new Error('HARDWARE_NOT_FOUND');
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Returns the active local media stream reference
+   */
+  public getStream(): MediaStream | null {
+    return this.localStream;
+  }
+
+  /**
+   * Physically enables or disables tracks on the stream level to mute hardware
+   */
+  public toggleTrack(type: 'video' | 'audio', enabled: boolean): void {
+    if (!this.localStream) return;
+    const tracks = type === 'video' ? this.localStream.getVideoTracks() : this.localStream.getAudioTracks();
+    tracks.forEach(track => (track.enabled = enabled));
+  }
+}

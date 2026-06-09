@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    /* Target and Environment */
+    "target": "ES2022",                          /* Compiles to modern, highly optimized JavaScript */
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],   /* Includes browser globals like MediaStream, RTCPeerConnection, and window */
+    "module": "NodeNext",                       /* Standard for modern ESM/CommonJS compatibility */
+    "moduleResolution": "NodeNext",
+
+    /* Output Configuration */
+
+   
+    "rootDir": "./src",
+    "outDir": "./dist",                         /* Where your compiled JS and type files will live */
+    "declaration": true,                        /* Generates corresponding '.d.ts' files for consumer autocomplete */
+    "declarationMap": true,                     /* Allows developers to cmd+click back to source types */
+    "sourceMap": true,                          /* Helps with debugging compiled code */
+
+    /* Strict Type-Checking Options */
+    "strict": true,                             /* Enables all strict type-checking options */
+    "noImplicitAny": true,                      /* Raise error on expressions and declarations with an implied 'any' type */
+    "strictNullChecks": true,                   /* Ensures you explicitly handle null/undefined states (crucial for socket/peer connections) */
+    "skipLibCheck": true,                       /* Skip type checking of declaration files to speed up compilation */
+    
+    /* Interop Constraints */
+    "esModuleInterop": true,                    /* Emits additional JavaScript to ease importing CommonJS modules */
+    "forceConsistentCasingInFileNames": true    /* Ensures compilation doesn't break moving between Mac/Linux/Windows filesystems */
+  },
+  "include": ["src/**/*", "src/types"],                      /* We will place your typescript source files inside a clean /src directory */
+  "exclude": ["node_modules", "dist"]
+}
