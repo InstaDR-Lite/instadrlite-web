@@ -6,7 +6,7 @@ import VideoTab        from './VideoTab';
 import PaymentsTab     from './PaymentsTab';
 import SubscriptionTab from './SubscriptionTab';
 import IntegrationsTab from './IntegrationsTab';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 
 type Tab = 'room' | 'profile' | 'video' | 'payments' | 'subscription' | 'integrations';
 
@@ -90,7 +90,11 @@ export default function SettingsModal({
           {activeTab === 'video'        && <VideoTab />}
           {activeTab === 'payments'     && <PaymentsTab />}
           {activeTab === 'subscription' && <SubscriptionTab />}
-          {activeTab === 'integrations' && <IntegrationsTab />}
+          {activeTab === 'integrations' && (
+            <Suspense fallback={null}>
+              <IntegrationsTab />
+            </Suspense>
+          )}
         </div>
       </div>
     </div>
