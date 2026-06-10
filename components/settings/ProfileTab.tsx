@@ -131,28 +131,6 @@ export default function ProfileTab() {
         />
       </div>
 
-
-      {/* Slug */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">room link</label>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center border border-[rgba(0,80,40,0.18)] bg-[#EDE8DC] flex-1">
-            <span className="px-3 text-[11px] text-[#7A9A7A] font-mono border-r border-[rgba(0,80,40,0.18)]">
-              instadr.link/
-            </span>
-            <span className="px-3 text-sm font-mono text-[#1A2E1A] py-2">
-              {provider?.slug || 'not set'}
-            </span>
-          </div>
-          <button
-            onClick={() => navigator.clipboard.writeText(`https://instadr.link/${provider?.slug}`)}
-            className="px-3 py-2 border border-[rgba(0,80,40,0.18)] text-[10px] tracking-widest uppercase text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all"
-          >
-            copy
-          </button>
-        </div>
-      </div>
-
       {/* Licensed States */}
       <div className="flex flex-col gap-1.5">
         <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">

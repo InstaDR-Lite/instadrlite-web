@@ -19,7 +19,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [showSettings, setShowSettings] = useState(false);
-  const [defaultTab, setDefaultTab] = useState<string>('profile');
+  const [defaultTab, setDefaultTab] = useState<string>('room');
   const searchParams = useSearchParams();
 
   const router = useRouter();

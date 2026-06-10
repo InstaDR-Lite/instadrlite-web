@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import RoomTab from './RoomTab';
 import ProfileTab      from './ProfileTab';
 import VideoTab        from './VideoTab';
 import PaymentsTab     from './PaymentsTab';
 import SubscriptionTab from './SubscriptionTab';
 import IntegrationsTab from './IntegrationsTab';
+import { useState } from 'react';
 
-type Tab = 'profile' | 'video' | 'payments' | 'subscription' | 'integrations';
+type Tab = 'room' | 'profile' | 'video' | 'payments' | 'subscription' | 'integrations';
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'room',         label: 'Your Room' },
   { id: 'profile',      label: 'Profile' },
   { id: 'video',        label: 'Video & Hardware' },
   { id: 'payments',     label: 'Payment & Payouts' },
@@ -17,15 +19,17 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'integrations', label: 'Integrations' },
 ];
 
+
+
 export default function SettingsModal({
   onClose,
-  defaultTab = 'profile'
+  defaultTab = 'room'
 }: {
     onClose: () => void
     defaultTab?: Tab
 }) {
-  const [activeTab, setActiveTab] = useState<Tab>(defaultTab);
-
+  const [activeTab, setActiveTab] = useState<Tab>(defaultTab || 'room');
+  
   return (
     <div className="fixed inset-0 z-[150] flex">
       {/* Backdrop */}
@@ -81,6 +85,7 @@ export default function SettingsModal({
 
         {/* Right content */}
         <div className="flex-1 overflow-y-auto">
+          {activeTab === 'room'         && <RoomTab />} 
           {activeTab === 'profile'      && <ProfileTab />}
           {activeTab === 'video'        && <VideoTab />}
           {activeTab === 'payments'     && <PaymentsTab />}
