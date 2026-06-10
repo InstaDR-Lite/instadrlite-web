@@ -1,6 +1,5 @@
 'use client';
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import TodayQueue from '@/components/dashboard/TodayQueue';
 import UpNext from '@/components/dashboard/UpNext';
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
@@ -28,38 +27,53 @@ export default function DashboardPage() {
   const [showModal,    setShowModal]     = useState(false);
   const [loading,      setLoading]       = useState(true);
 
-  const fetchToday = async () => {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/today`, {
-        credentials: 'include'  // ← add this
+
+// ... inside your dashboard component ...
+
+// const [appointments, setAppointments] = useState<any[]>([]);
+// const [selected, setSelected] = useState<any>(null);
+// const [loading, setLoading] = useState(true);
+
+// 1. Wrap in useCallback so the function reference NEVER changes
+const fetchToday = useCallback(async () => {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/today`, {
+      credentials: 'include'
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      const appts = data.appointments.map((a: any) => ({
+        ...a,
+        startsAt: new Date(a.startsAt),
+        endsAt:   new Date(a.endsAt),
+      }));
+      
+      setAppointments(appts);
+      
+      // 💡 Functional state update bypasses the stale closure trap entirely
+      setSelected((prevSelected: any) => {
+        if (!prevSelected && appts.length > 0) {
+          return appts[0];
+        }
+        return prevSelected;
       });
-      const data = await res.json();
-      if (data.success) {
-        const appts = data.appointments.map((a: any) => ({
-          ...a,
-          startsAt: new Date(a.startsAt),
-          endsAt:   new Date(a.endsAt),
-        }));
-        setAppointments(appts);
-        if (!selected && appts.length > 0) setSelected(appts[0]);
-      }
-    } catch (err) {
-      console.error('Failed to fetch appointments:', err);
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (err) {
+    console.error('Failed to fetch appointments:', err);
+  } finally {
+    setLoading(false);
+  }
+}, []); // Empty array keeps this function perfectly stable
 
-  useEffect(() => {
-    fetchToday();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+// 2. Clean, single unified lifecycle handler
+useEffect(() => {
+  fetchToday(); // Run immediately on mount
 
-  useEffect(() => {
-    const interval = setInterval(fetchToday, 10000); // every 10s
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const interval = setInterval(fetchToday, 10000); // Poll safely every 10s
+  
+  return () => clearInterval(interval); // Clean up cleanly
+}, [fetchToday]);
 
   const handleSelect = (appt: Appointment) => {
     setSelected(appt);
