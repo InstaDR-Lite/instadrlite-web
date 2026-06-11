@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "InstaDR-Lite — Clinical Telehealth",
+  title: "InstaRoom — Clinical Telehealth",
   description: "Taking your practice virtual just got easier.",
 };
 

@@ -23,7 +23,7 @@ export default function TopNav({ onSettingsOpen }: TopNavProps) {
             iD
           </span>
           <span className="text-sm tracking-widest uppercase text-[#1A2E1A]">
-            InstaDR<span className="text-[#7A9A7A]">-Lite</span>
+            InstaRoom
           </span>
         </div>
 

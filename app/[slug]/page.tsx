@@ -3,6 +3,20 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
+
+interface ProviderProfile {
+  bio?:                string;
+  phone?:              string;
+  office_address?:     string;
+  hours_of_operation?: string;
+  certifications:      string[];
+  accepts_insurance:   boolean;
+  accepts_selfpay:     boolean;
+  accepts_sliding: boolean;
+  session_duration: number;
+  session_cost: number;
+}
+
 interface Provider {
   id:              string;
   name:            string;
@@ -10,6 +24,7 @@ interface Provider {
   specialty:       string;
   licensed_states: string[];
   slug:            string;
+  profile?:        ProviderProfile | null;
 }
 
 export default function ProviderRoomPage() {
@@ -31,44 +46,16 @@ export default function ProviderRoomPage() {
       .then(data => {
         if (!data.success) { setNotFound(true); return; }
         setProvider(data.provider);
+        console.log(data.provider);
         setLoading(false);
       })
       .catch(() => { setNotFound(true); setLoading(false); });
   }, [slug]);
 
-  // const handleCheckIn = async () => {
-  //   if (!patientName.trim()) {
-  //     setError('Please enter your name');
-  //     return;
-  //   }
-
-  //   setChecking(true);
-  //   setError(null);
-
-  //   try {
-  //     const res  = await fetch(
-  //       `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/slug/${slug}/today?patientName=${encodeURIComponent(patientName)}`
-  //     );
-  //     const data = await res.json();
-
-  //     if (data.roomId) {
-  //       router.push(`/room/${data.roomId}`);
-  //       return;
-  //     }
-
-  //     // No appointment found — show waiting state
-  //     setWaiting(true);
-  //     setChecking(false);
-
-  //   } catch {
-  //     setError('Something went wrong. Please try again.');
-  //     setChecking(false);
-  //   }
-  // };
 
     const handleCheckIn = async () => {
-    if (!patientName.trim()) {
-      setError('Please enter your name');
+      if (!patientName.trim()) {
+        setError('Please enter your name');
       return;
     }
 
@@ -109,7 +96,7 @@ export default function ProviderRoomPage() {
         <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-2">// not found</div>
         <div className="text-lg font-semibold text-[#1A2E1A]">Room not found</div>
         <p className="text-sm text-[#7A9A7A] font-mono mt-2">
-          This provider link doesn't exist or has moved.
+          This provider link doesn&apos;t exist or has moved.
         </p>
       </div>
     </div>
@@ -121,9 +108,9 @@ export default function ProviderRoomPage() {
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-2">
-          <span className="border border-[rgba(0,80,40,0.30)] px-2 py-0.5 text-[#007A40] text-xs font-bold tracking-wider">iD</span>
+          <span className="border border-[rgba(0,80,40,0.30)] px-2 py-0.5 text-[#007A40] text-xs font-bold tracking-wider">iRM</span>
           <span className="text-sm tracking-widest uppercase text-[#1A2E1A] font-mono">
-            InstaDR<span className="text-[#7A9A7A]">-Lite</span>
+            InstaRoom
           </span>
         </div>
 
@@ -154,6 +141,69 @@ export default function ProviderRoomPage() {
           )}
         </div>
 
+        {provider?.profile && (
+          <div className="border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8] p-5 flex flex-col gap-3">
+            
+            {provider.profile?.bio && (
+              <p className="text-sm text-[#3D5C3D] font-mono leading-relaxed">
+                {provider.profile.bio}
+              </p>
+            )}
+
+          {provider.profile.hours_of_operation && (
+            <div className="flex items-center gap-2 text-[11px] font-mono text-[#7A9A7A]">
+              <span>// hours:</span>
+              <span className="text-[#1A2E1A]">{provider.profile.hours_of_operation}</span>
+            </div>
+          )}
+
+          {provider.profile.phone && (
+            <div className="flex items-center gap-2 text-[11px] font-mono text-[#7A9A7A]">
+              <span>// phone:</span>
+              <a href={`tel:${provider.profile.phone}`} className="text-[#007A40]">
+                {provider.profile.phone}
+              </a>
+            </div>
+          )}
+
+          {/* Payment types */}
+          <div className="flex flex-wrap gap-2 mt-1">
+            {provider.profile.accepts_selfpay && (
+              <span className="px-2 py-0.5 border border-[rgba(0,80,40,0.18)] text-[10px] font-mono text-[#7A9A7A] tracking-widest">
+                self-pay
+              </span>
+            )}
+            {provider.profile.accepts_insurance && (
+              <span className="px-2 py-0.5 border border-[rgba(0,80,40,0.18)] text-[10px] font-mono text-[#7A9A7A] tracking-widest">
+                insurance
+              </span>
+            )}
+            {provider.profile.accepts_sliding && (
+              <span className="px-2 py-0.5 border border-[rgba(0,80,40,0.18)] text-[10px] font-mono text-[#7A9A7A] tracking-widest">
+                sliding scale
+              </span>
+            )}
+            </div>
+            
+            {(provider.profile.session_cost || provider.profile.session_duration) && (
+            <div className="flex items-center gap-4 text-[11px] font-mono text-[#7A9A7A]">
+              {provider.profile.session_cost && (
+                <span>// session: <span className="text-[#1A2E1A]">${provider.profile.session_cost}</span></span>
+              )}
+              {provider.profile.session_duration && (
+                <span>// duration: <span className="text-[#1A2E1A]">{provider.profile.session_duration} min</span></span>
+              )}
+            </div>
+          )}
+            
+
+          {provider.profile.certifications?.length > 0 && (
+            <div className="text-[10px] text-[#7A9A7A] font-mono">
+              // certifications: {provider.profile.certifications.join(', ')}
+            </div>
+          )}
+        </div>
+      )}
         {/* Waiting room card */}
         <div className="border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8] p-5 flex flex-col gap-4">
           <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase">
@@ -163,7 +213,7 @@ export default function ProviderRoomPage() {
           {waiting ? (
             <div className="flex flex-col gap-3">
               <div className="text-sm font-semibold text-[#1A2E1A]">
-                You're checked in, {patientName}
+                You&apos;re checked in, {patientName}
               </div>
               <p className="text-[11px] text-[#7A9A7A] font-mono">
                 {provider?.name} will be with you shortly. Please keep this window open.
