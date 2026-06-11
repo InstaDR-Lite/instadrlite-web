@@ -12,8 +12,7 @@ export default function RoomTab() {
   const [saving,   setSaving]   = useState(false);
   const [saved,    setSaved]    = useState(false);
 
-  // const roomUrl = `https://instaroom.link/${provider?.slug || ''}`;
-  const roomUrl = `https://instadr.link/${provider?.slug || ''}`;
+  const roomUrl = `https://instaroom.link/${provider?.slug || ''}`;
 
   useEffect(() => {
     Promise.all([

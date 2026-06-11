@@ -326,7 +326,7 @@ export default function OnboardingPage() {
                 </label>
                 <div className="flex items-center border border-[rgba(0,80,40,0.18)] bg-[#EDE8DC] focus-within:border-[#007A40] transition-all">
                   <span className="px-3 text-[11px] text-[#7A9A7A] font-mono border-r border-[rgba(0,80,40,0.18)]">
-                    instadr.link/
+                    instaroom.link/
                   </span>
                   <input
                     type="text"
