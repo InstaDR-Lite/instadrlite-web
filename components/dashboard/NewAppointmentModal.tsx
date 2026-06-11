@@ -47,18 +47,6 @@ const [form, setForm] = useState({
     }
   }, [appointment]);
 
-  // const [form, setForm] = useState({
-  //   patientName:   appointment?.patientName   || '',
-  //   patientEmail:  appointment?.patientEmail  || '',
-  //   date:          appointment?.startsAt 
-  //     ? new Date(appointment.startsAt).toISOString().split('T')[0] 
-  //     : '',
-  //   startTime:     appointment?.startsAt
-  //     ? new Date(appointment.startsAt).toTimeString().slice(0, 5)
-  //     : '',
-  //   duration:      '50',
-  //   paymentAmount: appointment?.paymentAmount || ''
-  // });
 
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
@@ -117,6 +105,27 @@ const [form, setForm] = useState({
     }
   };
 
+  const handleClose = () => {
+    setInviteLink(null);
+    setError(null);
+    setForm({ patientName: '', patientEmail: '', date: '', startTime: '', duration: '50', paymentAmount: '' });
+    onClose();
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Cancel this appointment?')) return;
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointment.id}`, {
+        method:      'DELETE',
+        credentials: 'include'
+      });
+      onCreated(null);  // trigger refresh
+      handleClose();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
   /**
    * Copy meeting linkg
    */
@@ -140,17 +149,22 @@ const [form, setForm] = useState({
         {/* Header */}
         <div className="px-5 py-3 border-b border-[rgba(0,80,40,0.18)] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            
+            <span className="text-[10px] text-[#7A9A7A] tracking-widest">//</span>
             <span className="text-xs tracking-widest uppercase text-[#3D5C3D]">
               {isEdit ? 'Edit Appointment' : 'New Appointment'}
             </span>
           </div>
-          <button
-            onClick={onClose}
-            className="text-[#7A9A7A] hover:text-[#1A2E1A] text-sm transition-all"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-3">
+            {isEdit && (
+              <button
+                onClick={handleDelete}
+                className="text-[10px] tracking-widest uppercase text-[#CC2200] hover:underline transition-all"
+              >
+                delete
+              </button>
+            )}
+            <button onClick={handleClose} className="text-[#7A9A7A] hover:text-[#1A2E1A] text-sm">✕</button>
+          </div>
         </div>
 
         {/* Invite link success state */}
