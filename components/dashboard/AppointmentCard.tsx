@@ -58,7 +58,7 @@ export default function AppointmentCard({ appointment, isActive, onClick, onEdit
             onClick={e => { e.stopPropagation(); onEdit(appointment); }}
             className="text-[10px] text-[#7A9A7A] hover:text-[#007A40] tracking-widest uppercase transition-all"
           >
-            edit
+            [view/edit]
           </button>
         )}
         <span>

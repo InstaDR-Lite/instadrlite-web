@@ -10,13 +10,13 @@ interface Props {
 }
 
 export default function NewAppointmentModal({ 
-  isOpen, onClose, onCreated, appointment 
+isOpen, onClose, onCreated, appointment 
 }: Props) {
 
-  const [form, setForm] = useState({
-    patientName:   '',
-    patientEmail:  '',
-    date:          '',
+const [form, setForm] = useState({
+  patientName:   '',
+  patientEmail:  '',
+  date:          '',
     startTime:     '',
     duration:      '50',
     paymentAmount: ''
@@ -102,13 +102,13 @@ export default function NewAppointmentModal({
       if (!data.success) throw new Error(data.error);
 
       if (isEdit) {
-          onCreated(data.appointment);
-          onClose();  // ← add this
-          return;
-        }
-        // New appointment shows invite link — don't close
-        setInviteLink(data.appointment.inviteLink);
         onCreated(data.appointment);
+        onClose();  // ← add this
+        return;
+      }
+      // New appointment shows invite link — don't close
+      setInviteLink(data.appointment.inviteLink);
+      onCreated(data.appointment);
       
     } catch (err: any) {
       setError(err.message);

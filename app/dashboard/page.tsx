@@ -97,7 +97,6 @@ const fetchToday = useCallback(async () => {
         appointment={editingAppt || undefined}
       />
 
-    
       <div className="flex h-full">
         {/* Left */}
         <div className={`
