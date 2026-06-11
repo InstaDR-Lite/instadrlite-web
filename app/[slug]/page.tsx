@@ -144,12 +144,12 @@ export default function ProviderRoomPage() {
           <div className="flex items-center gap-1.5 mt-1">
             <span className="w-1.5 h-1.5 rounded-full bg-[#007A40] animate-pulse" />
             <span className="text-[11px] text-[#007A40] font-mono tracking-widest">
-              // accepting telehealth visits
+               accepting telehealth visits
             </span>
           </div>
-          {provider?.licensed_states?.length > 0 && (
+          {(provider?.licensed_states?.length ?? 0) > 0 && (
             <div className="text-[10px] text-[#7A9A7A] font-mono mt-1">
-              Licensed in: {provider.licensed_states.join(', ')}
+              Licensed in: {provider?.licensed_states.join(', ')}
             </div>
           )}
         </div>
