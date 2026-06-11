@@ -27,12 +27,8 @@ export default function DashboardPage() {
   const [showModal,    setShowModal]     = useState(false);
   const [loading,      setLoading]       = useState(true);
 
+  const [editingAppt, setEditingAppt] = useState<Appointment | null>(null);
 
-// ... inside your dashboard component ...
-
-// const [appointments, setAppointments] = useState<any[]>([]);
-// const [selected, setSelected] = useState<any>(null);
-// const [loading, setLoading] = useState(true);
 
 // 1. Wrap in useCallback so the function reference NEVER changes
 const fetchToday = useCallback(async () => {
@@ -66,14 +62,12 @@ const fetchToday = useCallback(async () => {
   }
 }, []); // Empty array keeps this function perfectly stable
 
-// 2. Clean, single unified lifecycle handler
-useEffect(() => {
-  fetchToday(); // Run immediately on mount
-
-  const interval = setInterval(fetchToday, 10000); // Poll safely every 10s
   
-  return () => clearInterval(interval); // Clean up cleanly
-}, [fetchToday]);
+  // On mount
+  useEffect(() => {
+    fetchToday();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSelect = (appt: Appointment) => {
     setSelected(appt);
@@ -81,18 +75,29 @@ useEffect(() => {
   };
 
   const handleCreated = (appt: any) => {
-    fetchToday(); // refresh list
-
+    fetchToday();
+    // Update selected if it's the same appointment
+    if (selected?.id === appt.id) {
+      setSelected({
+        ...selected,
+        ...appt,
+        startsAt: new Date(appt.startsAt),
+        endsAt:   new Date(appt.endsAt),
+      });
+    }
+    setEditingAppt(null);
   };
 
   return (
     <>
       <NewAppointmentModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        isOpen={showModal || !!editingAppt}
+        onClose={() => { setShowModal(false); setEditingAppt(null); }}
         onCreated={handleCreated}
+        appointment={editingAppt || undefined}
       />
 
+    
       <div className="flex h-full">
         {/* Left */}
         <div className={`
@@ -116,11 +121,12 @@ useEffect(() => {
               Loading today&apos;s appointments...
             </p>
           ) : (
-            <TodayQueue
-              appointments={appointments}
-              onSelect={handleSelect}
-              selected={selected}
-            />
+              <TodayQueue
+                appointments={appointments}
+                onSelect={handleSelect}
+                selected={selected}
+                onEdit={setEditingAppt}
+              />
           )}
         </div>
 

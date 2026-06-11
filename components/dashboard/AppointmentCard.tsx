@@ -4,6 +4,7 @@ interface Props {
   appointment: Appointment;
   isActive:    boolean;
   onClick:     () => void;
+  onEdit?:     (appt: Appointment) => void;
 }
 
 const statusConfig = {
@@ -14,7 +15,7 @@ const statusConfig = {
   completed:   { label: 'COMPLETED',   color: 'text-[#7A9A7A]',  dot: 'bg-[#7A9A7A]' },
 };
 
-export default function AppointmentCard({ appointment, isActive, onClick }: Props) {
+export default function AppointmentCard({ appointment, isActive, onClick, onEdit }: Props) {
   const cfg   = statusConfig[appointment.status];
   const time  = appointment.startsAt.toLocaleTimeString('en-US', {
     hour:   '2-digit',
@@ -52,6 +53,14 @@ export default function AppointmentCard({ appointment, isActive, onClick }: Prop
         <span>
           {appointment.geoVerified ? '📍 Verified' : '📍 Pending GPS'}
         </span>
+        {onEdit && (
+          <button
+            onClick={e => { e.stopPropagation(); onEdit(appointment); }}
+            className="text-[10px] text-[#7A9A7A] hover:text-[#007A40] tracking-widest uppercase transition-all"
+          >
+            edit
+          </button>
+        )}
         <span>
           {appointment.paymentStatus === 'paid'
             ? '💳 Paid'

@@ -1,14 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Props {
-  isOpen:   boolean;
-  onClose:  () => void;
-  onCreated: (appointment: any) => void;
+  isOpen:      boolean;
+  onClose:     () => void;
+  onCreated:   (appointment: any) => void;
+  appointment?: any;  // ← add for edit mode
 }
 
-export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Props) {
+export default function NewAppointmentModal({ 
+  isOpen, onClose, onCreated, appointment 
+}: Props) {
+
   const [form, setForm] = useState({
     patientName:   '',
     patientEmail:  '',
@@ -17,6 +21,45 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
     duration:      '50',
     paymentAmount: ''
   });
+
+  const isEdit = !!appointment;
+
+  useEffect(() => {
+    if (appointment) {
+      setForm({
+        patientName:   appointment?.patientName   || '',
+        patientEmail:  appointment?.patientEmail  || '',
+        date: appointment.startsAt
+          ? (() => {
+              const d = new Date(appointment.startsAt);
+              return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            })()
+          : '',
+        startTime: appointment.startsAt
+          ? (() => {
+              const d = new Date(appointment.startsAt);
+              return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            })()
+          : '',
+        duration:      '50',
+        paymentAmount: appointment?.paymentAmount?.toString() || ''
+      });
+    }
+  }, [appointment]);
+
+  // const [form, setForm] = useState({
+  //   patientName:   appointment?.patientName   || '',
+  //   patientEmail:  appointment?.patientEmail  || '',
+  //   date:          appointment?.startsAt 
+  //     ? new Date(appointment.startsAt).toISOString().split('T')[0] 
+  //     : '',
+  //   startTime:     appointment?.startsAt
+  //     ? new Date(appointment.startsAt).toTimeString().slice(0, 5)
+  //     : '',
+  //   duration:      '50',
+  //   paymentAmount: appointment?.paymentAmount || ''
+  // });
+
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
@@ -24,11 +67,11 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
   if (!isOpen) return null;
 
   const handleSubmit = async () => {
+
     if (!form.patientName || !form.date || !form.startTime) {
       setError('Patient name, date and time are required');
       return;
     }
-
     setLoading(true);
     setError(null);
 
@@ -36,10 +79,16 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
       const startsAt = new Date(`${form.date}T${form.startTime}`);
       const endsAt   = new Date(startsAt.getTime() + parseInt(form.duration) * 60000);
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',   
+      const url    = isEdit
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointment.id}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/appointments`;
+      
+      const method = isEdit ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers:     { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           patientName:   form.patientName,
           patientEmail:  form.patientEmail,
@@ -50,13 +99,17 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
       });
 
       const data = await res.json();
-
       if (!data.success) throw new Error(data.error);
-      console.log('Created appointment:', data.appointment.inviteLink);
 
-      setInviteLink(data.appointment.inviteLink);
-      onCreated(data.appointment);
-
+      if (isEdit) {
+          onCreated(data.appointment);
+          onClose();  // ← add this
+          return;
+        }
+        // New appointment shows invite link — don't close
+        setInviteLink(data.appointment.inviteLink);
+        onCreated(data.appointment);
+      
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -64,6 +117,9 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
     }
   };
 
+  /**
+   * Copy meeting linkg
+   */
   const copyLink = () => {
     if (inviteLink) {
       navigator.clipboard.writeText(inviteLink);
@@ -86,7 +142,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
           <div className="flex items-center gap-2">
             
             <span className="text-xs tracking-widest uppercase text-[#3D5C3D]">
-              New Appointment
+              {isEdit ? 'Edit Appointment' : 'New Appointment'}
             </span>
           </div>
           <button
@@ -242,7 +298,7 @@ export default function NewAppointmentModal({ isOpen, onClose, onCreated }: Prop
                     : 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#edf1f7]'
                 }`}
               >
-                {loading ? '// creating...' : '[ create appointment ]'}
+                {loading ? '// saving...' : isEdit ? '[ save changes ]' : '[ create appointment ]'}
               </button>
               <button
                 onClick={onClose}

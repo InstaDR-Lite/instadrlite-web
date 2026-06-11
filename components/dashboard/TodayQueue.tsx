@@ -5,9 +5,10 @@ interface Props {
   appointments: Appointment[];
   onSelect:     (appt: Appointment) => void;
   selected:     Appointment | null;
+  onEdit?:      (appt: Appointment) => void;
 }
 
-export default function TodaysQueue({ appointments, onSelect, selected }: Props) {
+export default function TodaysQueue({ appointments, onSelect, selected, onEdit }: Props) {
   return (
     <div className="flex-1 overflow-y-auto">
       {appointments.length === 0 ? (
@@ -22,6 +23,7 @@ export default function TodaysQueue({ appointments, onSelect, selected }: Props)
             appointment={appt}
             isActive={selected?.id === appt.id}
             onClick={() => onSelect(appt)}
+            onEdit={onEdit}
           />
         ))
       )}
