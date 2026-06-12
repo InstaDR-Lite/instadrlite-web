@@ -20,7 +20,13 @@ const [form, setForm] = useState({
     startTime:     '',
     duration:      '50',
     paymentAmount: ''
-  });
+});
+
+  const [emailSent, setEmailSent] = useState(false);
+  const [createdAppointment, setCreatedAppointment] = useState<any>(null);
+
+// In handleSubmit after success:
+
 
   const isEdit = !!appointment;
 
@@ -95,6 +101,7 @@ const [form, setForm] = useState({
         return;
       }
       // New appointment shows invite link — don't close
+      setCreatedAppointment(data.appointment);
       setInviteLink(data.appointment.inviteLink);
       onCreated(data.appointment);
       
@@ -107,6 +114,8 @@ const [form, setForm] = useState({
 
   const handleClose = () => {
     setInviteLink(null);
+    setEmailSent(false);        // ← add
+    setCreatedAppointment(null); // ← add
     setError(null);
     setForm({ patientName: '', patientEmail: '', date: '', startTime: '', duration: '50', paymentAmount: '' });
     onClose();
@@ -129,11 +138,25 @@ const [form, setForm] = useState({
   /**
    * Copy meeting linkg
    */
-  const copyLink = () => {
+  const handleCopyLink = () => {
     if (inviteLink) {
       navigator.clipboard.writeText(inviteLink);
     }
   };
+
+
+
+  const handleSendEmail = async () => {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${createdAppointment.id}/send-invite`, {
+        method:      'POST',
+        credentials: 'include'
+      });
+      setEmailSent(true);
+    } catch (err) {
+      console.error('Failed to send email:', err);
+    }
+};
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center">
@@ -182,22 +205,26 @@ const [form, setForm] = useState({
                 {inviteLink}
               </span>
             </div>
-            <div className="flex gap-2">
+            {/* After invite link display */}
+            <div className="flex flex-col gap-2">
               <button
-                onClick={copyLink}
-                className="flex-1 py-2.5 border border-[#007A40] text-[10px] tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#edf1f7] transition-all"
+                onClick={handleCopyLink}
+                className="flex-1 py-2.5 border border-[#007A40] ..."
               >
                 copy invite link
               </button>
               <button
-                onClick={
-                  () => {
-                    onClose();
-                    setInviteLink(null);
-                  }
-                }
-                className="flex-1 py-2.5 border border-[rgba(0,80,40,0.18)] text-[10px] tracking-widest uppercase text-[#7A9A7A] hover:text-[#1A2E1A] transition-all"
+                onClick={handleSendEmail}
+                disabled={emailSent}
+                className={`flex-1 py-2.5 border text-[10px] tracking-widest uppercase transition-all ${
+                  emailSent
+                    ? 'border-[#007A40] text-[#007A40] bg-[rgba(0,122,64,0.08)]'
+                    : 'border-[rgba(0,80,40,0.18)] text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40]'
+                }`}
               >
+                {emailSent ? '✓ email sent' : 'send email →'}
+              </button>
+              <button onClick={handleClose} className="w-full py-2 ...">
                 done
               </button>
             </div>
@@ -208,7 +235,7 @@ const [form, setForm] = useState({
             {/* Patient Name */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">
-                patient name *
+                client name *
               </label>
               <input
                 type="text"
@@ -222,7 +249,7 @@ const [form, setForm] = useState({
             {/* Patient Email */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">
-                patient email
+                client email
               </label>
               <input
                 type="email"
