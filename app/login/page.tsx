@@ -42,7 +42,7 @@ export default function LoginPage() {
         {/* Header */}
         <div className="px-6 py-4 border-b border-[rgba(0,80,40,0.18)] flex items-center gap-3">
           <span className="border border-[rgba(0,80,40,0.30)] px-2 py-0.5 text-[#007A40] text-xs font-bold tracking-wider">iD</span>
-          <span className="text-sm tracking-widest uppercase text-[#1A2E1A]">InstaDR<span className="text-[#7A9A7A]">-Lite</span></span>
+          <span className="text-sm tracking-widest uppercase text-[#1A2E1A]">InstaRoom<span className="text-[#7A9A7A]">-Lite</span></span>
         </div>
 
         <div className="p-6 flex flex-col gap-4">

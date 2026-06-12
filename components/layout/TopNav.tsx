@@ -20,7 +20,7 @@ export default function TopNav({ onSettingsOpen }: TopNavProps) {
         {/* Logo */}
         <div className="flex items-center gap-3">
           <span className="border border-[rgba(0,80,40,0.30)] px-2 py-0.5 text-[#007A40] text-xs font-bold tracking-wider">
-            iD
+            iRM
           </span>
           <span className="text-sm tracking-widest uppercase text-[#1A2E1A]">
             InstaRoom

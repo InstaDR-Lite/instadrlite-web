@@ -87,7 +87,7 @@ export default function SubscriptionTab() {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm font-semibold text-[#1A2E1A]">
-              {promoApplied ? `Cohort 01 Pilot Access` : 'InstaDR-Lite'}
+              {promoApplied ? `Cohort 01 Pilot Access` : 'InstaRoom'}
             </div>
             <div className="text-[11px] text-[#7A9A7A] font-mono mt-0.5">
               {promoApplied

@@ -111,6 +111,12 @@ export default function CalendarPage() {
           >
             today
           </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="ml-auto hidden md:block border border-[#007A40] px-3 h-[28px] text-[10px] tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#edf1f7] transition-all"
+          >
+            + new appt
+          </button>
         </div>
 
         {/* Columnar grid */}

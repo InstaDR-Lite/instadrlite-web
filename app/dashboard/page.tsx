@@ -144,12 +144,6 @@ const fetchToday = useCallback(async () => {
             </button>
             {/* <span className="text-[10px] tracking-widest uppercase text-[#7A9A7A]"></span> */}
             <span className="text-xs tracking-widest uppercase text-[#3D5C3D]">Up Next</span>
-            <button
-              onClick={() => setShowModal(true)}
-              className="ml-auto hidden md:block border border-[#007A40] px-3 h-[28px] text-[10px] tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#edf1f7] transition-all"
-            >
-              + new appt
-            </button>
           </div>
           <UpNext
             appointment={selected}

@@ -62,7 +62,7 @@ function Shell({
         <div className="px-5 py-3 border-b border-[rgba(0,80,40,0.18)] flex items-center gap-3">
           <span className="border border-[rgba(0,80,40,0.30)] px-2 py-0.5 text-[#007A40] text-xs font-bold">iD</span>
           <span className="text-sm tracking-widest uppercase text-[#1A2E1A]">
-            InstaDR<span className="text-[#7A9A7A]">-Lite</span>
+            InstaRoom
           </span>
           {providerName && (
             <span className="ml-auto text-[10px] text-[#7A9A7A] tracking-widest uppercase">
