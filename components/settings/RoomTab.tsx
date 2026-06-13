@@ -238,21 +238,6 @@ export default function RoomTab() {
                   className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all"
                 />
               </div>
-
-              {/* Save button */}
-              <button
-                onClick={handleSaveProfile}
-                disabled={saving}
-                className={`w-full py-3 text-xs tracking-widest uppercase transition-all ${
-                  saving
-                    ? 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A]'
-                    : saved
-                    ? 'border border-[#007A40] bg-[rgba(0,122,64,0.08)] text-[#007A40]'
-                    : 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]'
-                }`}
-              >
-                {saving ? '// saving...' : saved ? '✓ saved' : '[ save public profile ]'}
-              </button>
             </div>
           </>
         ) : (
@@ -270,6 +255,114 @@ export default function RoomTab() {
           </div>
         )}
       </div>
+
+      {/* Room Hours */}
+      <div className="border border-[rgba(0,80,40,0.18)] p-4 flex flex-col gap-4">
+        <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase">
+          // room hours & availability
+        </div>
+
+        {/* Working days */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">working days</label>
+          <div className="flex gap-1.5 flex-wrap">
+            {[
+              { label: 'MON', value: 1 },
+              { label: 'TUE', value: 2 },
+              { label: 'WED', value: 3 },
+              { label: 'THU', value: 4 },
+              { label: 'FRI', value: 5 },
+              { label: 'SAT', value: 6 },
+              { label: 'SUN', value: 0 },
+            ].map(day => {
+              const isSelected = (profile.room_days ?? [1,2,3,4,5]).includes(day.value);
+              return (
+                <button
+                  key={day.value}
+                  onClick={() => {
+                    const current = profile.room_days ?? [1,2,3,4,5];
+                    const updated  = isSelected
+                      ? current.filter((d: number) => d !== day.value)
+                      : [...current, day.value];
+                    setProfile((p: any) => ({ ...p, room_days: updated }));
+                  }}
+                  className={`px-3 py-1.5 text-[10px] tracking-widest border transition-all ${
+                    isSelected
+                      ? 'border-[#007A40] bg-[rgba(0,122,64,0.08)] text-[#007A40]'
+                      : 'border-[rgba(0,80,40,0.18)] text-[#7A9A7A] hover:border-[#007A40]'
+                  }`}
+                >
+                  {day.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Start / End time */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">start time</label>
+            <select
+              value={profile.room_hours_start ?? 9}
+              onChange={e => setProfile((p: any) => ({ ...p, room_hours_start: parseInt(e.target.value) }))}
+              className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] focus:outline-none focus:border-[#007A40]"
+            >
+              {Array.from({ length: 16 }, (_, i) => i + 6).map(h => (
+                <option key={h} value={h}>
+                  {h === 12 ? '12:00 PM' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">end time</label>
+            <select
+              value={profile.room_hours_end ?? 17}
+              onChange={e => setProfile((p: any) => ({ ...p, room_hours_end: parseInt(e.target.value) }))}
+              className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] focus:outline-none focus:border-[#007A40]"
+            >
+              {Array.from({ length: 16 }, (_, i) => i + 6).map(h => (
+                <option key={h} value={h}>
+                  {h === 12 ? '12:00 PM' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Slot duration */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">slot duration</label>
+          <select
+            value={profile.slot_duration ?? 50}
+            onChange={e => setProfile((p: any) => ({ ...p, slot_duration: parseInt(e.target.value) }))}
+            className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] focus:outline-none focus:border-[#007A40]"
+          >
+            <option value={30}>30 minutes</option>
+            <option value={45}>45 minutes</option>
+            <option value={50}>50 minutes (default)</option>
+            <option value={60}>60 minutes</option>
+            <option value={90}>90 minutes</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Save button */}
+        <button
+          onClick={handleSaveProfile}
+          disabled={saving}
+          className={`w-full py-3 text-xs tracking-widest uppercase transition-all ${
+            saving
+              ? 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A]'
+              : saved
+              ? 'border border-[#007A40] bg-[rgba(0,122,64,0.08)] text-[#007A40]'
+              : 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]'
+          }`}
+        >
+          {saving ? '// saving...' : saved ? '✓ saved' : '[ save room ]'}
+        </button>
 
       {/* Custom domain — coming soon */}
       <div className="border border-[rgba(0,80,40,0.18)] p-4 flex flex-col gap-2 opacity-60">
@@ -294,7 +387,7 @@ export default function RoomTab() {
         </div>
       </div>
 
-      {/* Room hours — coming soon */}
+      {/* Room hours — coming soon
       <div className="border border-[rgba(0,80,40,0.18)] p-4 opacity-60">
         <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">
           room hours — coming soon
@@ -302,7 +395,7 @@ export default function RoomTab() {
         <p className="text-[11px] text-[#7A9A7A] font-mono">
           Set your availability. Patients see when you&apos;re open.
         </p>
-      </div>
+      </div> */}
     </div>
   );
 }

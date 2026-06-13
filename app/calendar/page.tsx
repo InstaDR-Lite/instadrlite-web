@@ -10,16 +10,22 @@ const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function getWeekDays(date: Date): Date[] {
   const start = new Date(date);
   const day = start.getDay();
-  start.setDate(start.getDate() - day + 1); // Monday
-  return Array.from({ length: 5 }, (_, i) => {
+  start.setDate(start.getDate() - day) ; // Sunday
+  return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
     return d;
   });
 }
+const getWeekStart = (date: Date) => {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = Sunday, 1 = Monday...
+  d.setDate(d.getDate() - day); // subtract day index → goes back to Sunday
+  return d;
+};
 
 export default function CalendarPage() {
-  const [weekStart,    setWeekStart]    = useState(new Date());
+  const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selected,     setSelected]     = useState<Appointment | null>(null);
   const [loading,      setLoading]      = useState(true);
@@ -121,7 +127,7 @@ export default function CalendarPage() {
 
         {/* Columnar grid */}
         <div className="flex-1 overflow-auto">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-px bg-[rgba(0,80,40,0.12)] min-h-full">
+          <div className="grid grid-cols-1 md:grid-cols-7 gap-px bg-[rgba(0,80,40,0.12)] min-h-full">
             {days.map((day, i) => (
               <div
                 key={i}
