@@ -51,15 +51,32 @@ export default function ProviderRoomPage() {
   const [booking, setBooking] = useState(false);
   const [bookedAppt, setBookedAppt] = useState<any>(null);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
   
-  const fetchSlots = async () => {
+  
+  const fetchSlots = async (offset = 0) => {
     setSlotsLoading(true);
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/slug/${slug}/slots`);
+    const res  = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/slug/${slug}/slots?weekOffset=${offset}`
+    );
     const data = await res.json();
     if (data.success) setSlots(data.slots);
     setSlotsLoading(false);
   };
 
+  const handlePrevWeek = () => {
+  if (weekOffset === 0) return; // can't go to past
+  const newOffset = weekOffset - 1;
+  setWeekOffset(newOffset);
+  fetchSlots(newOffset);
+};
+
+  const handleNextWeek = () => {
+    const newOffset = weekOffset + 1;
+    setWeekOffset(newOffset);
+    fetchSlots(newOffset);
+  };
+    
   const handleBook = async () => {
     if (!bookingForm.name || !bookingForm.email || !selectedSlot) return;
     setBooking(true);
@@ -183,7 +200,31 @@ export default function ProviderRoomPage() {
           <p className="text-[11px] text-[#7A9A7A] tracking-widest font-mono">// loading slots...</p>
         ) : (
 
-          /* 5-column grid */
+        <>
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={handlePrevWeek}
+              disabled={weekOffset === 0}
+              className={`text-[10px] tracking-widest uppercase font-mono px-3 py-1.5 border transition-all ${
+                weekOffset === 0
+                  ? 'border-[rgba(0,80,40,0.08)] text-[rgba(0,80,40,0.2)] cursor-not-allowed'
+                  : 'border-[rgba(0,80,40,0.18)] text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40]'
+              }`}
+            >
+              ← prev
+            </button>
+
+            <span className="text-[10px] text-[#7A9A7A] font-mono tracking-widest">
+              {slots.length > 0 ? `${slots[0].date.split(',')[1].trim()} — ${slots[6].date.split(',')[1].trim()}` : ''}
+            </span>
+
+            <button
+              onClick={handleNextWeek}
+              className="text-[10px] tracking-widest uppercase font-mono px-3 py-1.5 border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all"
+            >
+              next →
+            </button>
+          </div>
           <div className="grid grid-cols-7 gap-1 bg-[rgba(0,80,40,0.08)] p-1">
             {slots.map((day, i) => (
               <div key={i} className="flex flex-col gap-1">
@@ -218,6 +259,7 @@ export default function ProviderRoomPage() {
               </div>
             ))}
           </div>
+        </>
         )}
       </div>
     </div>
