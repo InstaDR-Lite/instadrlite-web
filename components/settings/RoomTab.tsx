@@ -175,9 +175,9 @@ export default function RoomTab() {
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">accepted payments</label>
                 {[
-                  { key: 'accepts_selfpay',   label: 'Self-pay / Out of pocket' },
                   { key: 'accepts_insurance', label: 'Insurance' },
-                  { key: 'accepts_sliding',   label: 'Sliding scale' },
+                  { key: 'accepts_selfpay',   label: 'Self-pay / Out of pocket' },
+                  // { key: 'accepts_sliding',   label: 'Sliding scale' },
                 ].map(opt => (
                   <label key={opt.key} className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -191,21 +191,22 @@ export default function RoomTab() {
                 ))}
 
               {/* Session details */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">session cost</label>
-                  <div className="flex items-center border border-[rgba(0,80,40,0.18)] bg-[#EDE8DC] focus-within:border-[#007A40]">
-                    <span className="px-3 text-[#7A9A7A] font-mono text-sm border-r border-[rgba(0,80,40,0.18)]">$</span>
-                    <input
-                      type="number"
-                      value={profile.session_cost || ''}
-                      onChange={e => setProfile((p: any) => ({ ...p, session_cost: e.target.value }))}
-                      placeholder="150"
-                      className="flex-1 px-3 py-2 bg-transparent text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none"
-                    />
+              {profile.accepts_selfpay && (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">session cost</label>
+                    <div className="flex items-center border border-[rgba(0,80,40,0.18)] bg-[#EDE8DC]">
+                      <span className="px-3 text-[#7A9A7A] font-mono text-sm border-r border-[rgba(0,80,40,0.18)]">$</span>
+                      <input
+                        type="number"
+                        value={profile.session_cost || ''}
+                        onChange={e => setProfile((p: any) => ({ ...p, session_cost: e.target.value }))}
+                        placeholder="150"
+                        className="flex-1 px-3 py-2 bg-transparent text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="flex flex-col gap-1.5">
+                )}
+                {/* <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">session length</label>
                   <select
                     value={profile.session_duration || 50}
@@ -218,8 +219,8 @@ export default function RoomTab() {
                     <option value={60}>60 min</option>
                     <option value={90}>90 min</option>
                   </select>
-                </div>
-              </div>
+                </div> */}
+              {/* </div> */}
               </div>
 
               {/* Certifications */}

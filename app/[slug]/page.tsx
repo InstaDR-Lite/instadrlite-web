@@ -15,6 +15,7 @@ interface ProviderProfile {
   accepts_sliding: boolean;
   session_duration: number;
   session_cost: number;
+  slot_duration: number;
 }
 
 interface Provider {
@@ -173,7 +174,7 @@ export default function ProviderRoomPage() {
           </div>
           {provider?.profile?.session_cost && (
             <span className="ml-auto text-[11px] text-[#7A9A7A] font-mono">
-              ${provider.profile.session_cost} / {provider.profile.session_duration || 50} min
+              ${provider.profile.session_cost} / {provider.profile.slot_duration || 50} min
             </span>
           )}
         </div>
@@ -183,7 +184,7 @@ export default function ProviderRoomPage() {
         ) : (
 
           /* 5-column grid */
-          <div className="grid grid-cols-5 gap-1 bg-[rgba(0,80,40,0.08)] p-1">
+          <div className="grid grid-cols-7 gap-1 bg-[rgba(0,80,40,0.08)] p-1">
             {slots.map((day, i) => (
               <div key={i} className="flex flex-col gap-1">
                 {/* Day header */}
@@ -203,9 +204,9 @@ export default function ProviderRoomPage() {
                       setSelectedSlot({ ...slot, date: day.date });
                       setPageView('confirm');
                     }}
-                    className={`py-1.5 text-[9px] font-mono tracking-wide border transition-all ${
+                    className={`py-1.5 text-[11px] font-mono tracking-wide border transition-all ${
                       !slot.available
-                        ? 'border-[rgba(0,80,40,0.08)] text-[#EDE8DC] bg-[#EDE8DC] cursor-not-allowed'
+                        ? 'border-[rgba(0,80,40,0.08)] text-[#000] bg-[#EDE8DC] cursor-not-allowed'
                         : selectedSlot?.datetime === slot.datetime
                         ? 'border-[#007A40] bg-[#007A40] text-[#F5F0E8]'
                         : 'border-[rgba(0,80,40,0.18)] text-[#3D5C3D] hover:border-[#007A40] hover:text-[#007A40] bg-[#F5F0E8]'
@@ -417,13 +418,13 @@ export default function ProviderRoomPage() {
             )}
             </div>
             
-            {(provider.profile.session_cost || provider.profile.session_duration) && (
+            {(provider.profile.session_cost || provider.profile.slot_duration) && (
             <div className="flex items-center gap-4 text-[11px] font-mono text-[#7A9A7A]">
               {provider.profile.session_cost && (
                 <span>// session: <span className="text-[#1A2E1A]">${provider.profile.session_cost}</span></span>
               )}
-              {provider.profile.session_duration && (
-                <span>// duration: <span className="text-[#1A2E1A]">{provider.profile.session_duration} min</span></span>
+              {provider.profile.slot_duration && (
+                <span>// duration: <span className="text-[#1A2E1A]">{provider.profile.slot_duration} min</span></span>
               )}
             </div>
           )}
