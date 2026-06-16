@@ -60,7 +60,7 @@ function Shell({
     <div className="min-h-screen bg-[#edf1f7] flex items-center justify-center p-4">
       <div className="w-full max-w-[440px] border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8]">
         <div className="px-5 py-3 border-b border-[rgba(0,80,40,0.18)] flex items-center gap-3">
-          <span className="border border-[rgba(0,80,40,0.30)] px-2 py-0.5 text-[#007A40] text-xs font-bold">iD</span>
+          <span className="border border-[rgba(0,80,40,0.30)] px-2 py-0.5 text-[#007A40] text-xs font-bold">IR</span>
           <span className="text-sm tracking-widest uppercase text-[#1A2E1A]">
             InstaRoom
           </span>
@@ -349,7 +349,7 @@ export default function PatientGatePage() {
           onClick={() => setStep('consent')}
           className="w-full py-3 border border-[#007A40] text-xs tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8] transition-all"
         >
-          [ that's me → ]
+          [ that&apos;s me → ]
         </button>
       </div>
     </Shell>
@@ -502,7 +502,7 @@ export default function PatientGatePage() {
   if (step === 'session') return (
     <div className="fixed inset-0 bg-[#0C100C] flex flex-col">
       {/* Remote stream — full screen */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative min-h-0">
         <video
           ref={remoteVideoRef}
           autoPlay
@@ -518,7 +518,7 @@ export default function PatientGatePage() {
         )}
 
         {/* Local PiP — top right */}
-        <div className="absolute top-4 right-4 w-[140px] h-[100px] border border-[rgba(0,255,140,0.22)] bg-[#0C100C] overflow-hidden">
+         <div className="absolute top-4 right-4 w-[180px] h-[120px] border border-[rgba(0,255,140,0.22)] bg-[#0C100C] overflow-hidden">
           <video
             ref={localVideoRef}
             autoPlay
@@ -530,7 +530,8 @@ export default function PatientGatePage() {
       </div>
 
       {/* Controls */}
-      <div className="h-[60px] flex-shrink-0 flex items-center justify-center gap-4 border-t border-[rgba(0,255,140,0.12)]">
+      {/* <div className="h-[60px] flex-shrink-0 flex items-center justify-center gap-4 border-t border-[rgba(0,255,140,0.12)]"> */}
+      <div className="h-[64px] flex-shrink-0 flex items-center justify-center gap-4 border-t border-[rgba(0,255,140,0.12)]">
         <button
           onClick={() => {
             const track = localStream?.getAudioTracks()[0];

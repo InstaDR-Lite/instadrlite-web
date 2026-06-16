@@ -107,9 +107,6 @@ export default function SessionView({
         >
           {session.videoOff ? 'cam on' : 'cam off'}
         </button>
-        <button className="px-4 h-[32px] border border-[rgba(0,255,140,0.22)] text-[10px] tracking-widest uppercase text-[#7A9A7A] hover:border-[#00FF8C] hover:text-[#00FF8C] transition-all">
-          files
-        </button>
         <button
           onClick={onEnd}
           className="px-6 h-[32px] border border-[#CC2200] text-[10px] tracking-widest uppercase text-[#CC2200] hover:bg-[#CC2200] hover:text-[#edf1f7] transition-all"
