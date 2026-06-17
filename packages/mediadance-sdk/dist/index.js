@@ -119,6 +119,11 @@ export class MediaDanceClient extends EventEmitter {
         if (typeof window === 'undefined') {
             throw new Error('startCall can only be executed in browser contexts.');
         }
+        // Clean up any previous blur processor
+        if (this.blurProcessor) {
+            this.blurProcessor.destroy();
+            this.blurProcessor = null;
+        }
         const targetUrl = signalingUrl || this.config.serverUrl;
         const effectiveToken = token || `mock_dev_token_${Date.now()}`;
         try {

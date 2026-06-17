@@ -4,6 +4,7 @@
 import { Appointment } from '@/app/dashboard/page';
 import { VideoSession } from '@/hooks/useVideoSession';
 import { RefObject, useEffect } from 'react';
+import { RemoteVideo } from './RemoteVideo';
 
 interface Props {
   appointment:    Appointment;
@@ -55,27 +56,13 @@ export default function SessionView({
         </button>
       </div>
 
-      {/* Remote video */}
-      <div className="flex-1 relative bg-[#080B08] min-h-0">
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          className="w-full h-full object-cover"
-        />
-        {session.status !== 'active' && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-[11px] text-[#3D5C3D] tracking-widest uppercase">
-              {session.status === 'local_only'
-                ? '// waiting for patient...'
-                : '// initializing pipeline...'}
-            </span>
-          </div>
-        )}
+      {/* video stuff */}
+      {/* <div className="flex-1 relative bg-[#080B08] min-h-0"> */}
+        <RemoteVideo stream={remoteStream} status={session.status} />
 
         {/* Local PiP — top right */}
         <div
-          className="absolute top-4 right-4 w-[180px] h-[120px] border border-[rgba(0,255,140,0.22)] bg-[#0C100C] overflow-hidden"
+          className="absolute top-[64px] right-4 w-[180px] h-[120px] border border-[rgba(221, 234, 229, 0.22)] bg-[#0C100C] overflow-hidden"
           style={{ transform: 'scaleX(-1)' }}
         >
           <video
@@ -86,7 +73,7 @@ export default function SessionView({
             className="w-full h-full object-cover"
           />
         </div>
-      </div>
+      {/* </div> */}
 
       {/* Controls */}
       <div className="h-[64px] flex-shrink-0 flex items-center justify-center gap-4 border-t border-[rgba(0,255,140,0.12)]">

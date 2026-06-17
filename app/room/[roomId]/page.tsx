@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import CopayForm from '@/components/patient/CopayForm';
+import { RemoteVideo } from '@/components/session/RemoteVideo';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -49,7 +50,7 @@ interface AppointmentData {
 interface MediaDanceClientInstance {
   on:          (event: string, handler: (...args: any[]) => void) => void;
   startCall:   (token: string, signalingUrl: string) => Promise<MediaStream>;
-  disconnect?: () => Promise<void>;
+  leave: () => Promise<void>;
   enableBackgroundBlur: ({ blurRadius, fps, modelSelection }: BlurOptions) => void;
 }
 
@@ -117,7 +118,7 @@ export default function PatientGatePage() {
       clientRef.current = new MediaDanceClient({ serverUrl: data.signalingUrl });
 
       clientRef.current.enableBackgroundBlur({
-        blurRadius: 12,      // px — increase for heavier blur
+        blurRadius: 20,      // px — increase for heavier blur
         fps: 24,             // px — increase for heavier blur
         modelSelection: 1    // 1 = landscape model, better for desktop clinical 
       });
@@ -514,24 +515,23 @@ export default function PatientGatePage() {
 
   if (step === 'session') return (
     <div className="fixed inset-0 bg-[#0C100C] flex flex-col">
+      
+       <div className="h-[44px] flex-shrink-0 flex items-center justify-between px-6 border-b border-[rgba(0,255,140,0.12)]">
+        <div className="flex items-center gap-3">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#00FF8C] animate-pulse" />
+          <span className="text-xs tracking-widest text-[#E8F5E8] uppercase">
+            {appointment?.provider.name}
+          </span>
+        </div>
+      </div>
+
       {/* Remote stream — full screen */}
-      <div className="flex-1 relative min-h-0">
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          className="w-full h-full object-cover"
-        />
-        {!remoteStream && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-[11px] text-[#3D5C3D] tracking-widest uppercase">
-              connecting to provider...
-            </p>
-          </div>
-        )}
+
+      {/* <div className="flex-1 relative min-h-0"> */}
+        <RemoteVideo stream={remoteStream} waitingText="connecting to provider..." />
 
         {/* Local PiP — top right */}
-        <div className="absolute top-4 right-4 w-[180px] h-[120px] border border-[rgba(0,255,140,0.22)] bg-[#0C100C] overflow-hidden"
+        <div className="absolute top-[64px] right-4 w-[180px] h-[120px] border border-[rgba(0,255,140,0.22)] bg-[#0C100C] overflow-hidden"
           style={{ transform: 'scaleX(-1)' }}>
           <video
             ref={localVideoRef}
@@ -541,7 +541,7 @@ export default function PatientGatePage() {
             className="w-full h-full object-cover"
           />
         </div>
-      </div>
+      {/* </div> */}
 
       {/* Controls */}
       {/* <div className="h-[60px] flex-shrink-0 flex items-center justify-center gap-4 border-t border-[rgba(0,255,140,0.12)]"> */}
@@ -566,7 +566,7 @@ export default function PatientGatePage() {
         </button>
         <button
           onClick={() => {
-            clientRef.current?.disconnect();
+            clientRef.current?.leave();
             setStep('waiting');
           }}
           className="px-6 h-[32px] border border-[#CC2200] text-[10px] tracking-widest uppercase text-[#CC2200] hover:bg-[#CC2200] hover:text-[#F5F0E8] transition-all"
