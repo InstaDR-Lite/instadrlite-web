@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
 import CopayForm from '@/components/patient/CopayForm';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
@@ -44,6 +44,13 @@ interface AppointmentData {
     specialty:       string;
     licensed_states: string[];
   };
+}
+
+interface MediaDanceClientInstance {
+  on:          (event: string, handler: (...args: any[]) => void) => void;
+  startCall:   (token: string, signalingUrl: string) => Promise<MediaStream>;
+  disconnect?: () => Promise<void>;
+  enableBackgroundBlur: ({ blurRadius, fps, modelSelection }: BlurOptions) => void;
 }
 
 // ── Shared layout wrapper — OUTSIDE the page component ──────────────
@@ -91,7 +98,7 @@ export default function PatientGatePage() {
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
-  const clientRef = useRef<any>(null);
+  const clientRef = useRef<MediaDanceClientInstance | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -108,6 +115,12 @@ export default function PatientGatePage() {
       const { MediaDanceClient } = await import('@mediadance/client-sdk');
 
       clientRef.current = new MediaDanceClient({ serverUrl: data.signalingUrl });
+
+      clientRef.current.enableBackgroundBlur({
+        blurRadius: 12,      // px — increase for heavier blur
+        fps: 24,             // px — increase for heavier blur
+        modelSelection: 1    // 1 = landscape model, better for desktop clinical 
+      });
 
       clientRef.current.on('local-stream-ready', (stream: MediaStream) => {
         setLocalStream(stream);
@@ -518,7 +531,8 @@ export default function PatientGatePage() {
         )}
 
         {/* Local PiP — top right */}
-         <div className="absolute top-4 right-4 w-[180px] h-[120px] border border-[rgba(0,255,140,0.22)] bg-[#0C100C] overflow-hidden">
+        <div className="absolute top-4 right-4 w-[180px] h-[120px] border border-[rgba(0,255,140,0.22)] bg-[#0C100C] overflow-hidden"
+          style={{ transform: 'scaleX(-1)' }}>
           <video
             ref={localVideoRef}
             autoPlay

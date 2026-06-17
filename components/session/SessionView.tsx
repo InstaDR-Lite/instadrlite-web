@@ -74,7 +74,10 @@ export default function SessionView({
         )}
 
         {/* Local PiP — top right */}
-        <div className="absolute top-4 right-4 w-[180px] h-[120px] border border-[rgba(0,255,140,0.22)] bg-[#0C100C] overflow-hidden">
+        <div
+          className="absolute top-4 right-4 w-[180px] h-[120px] border border-[rgba(0,255,140,0.22)] bg-[#0C100C] overflow-hidden"
+          style={{ transform: 'scaleX(-1)' }}
+        >
           <video
             ref={localVideoRef}
             autoPlay
