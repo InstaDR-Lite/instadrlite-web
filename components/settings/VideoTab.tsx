@@ -3,6 +3,28 @@
 
 import { useState, useEffect } from 'react';
 
+// ─── BROWSER DETECTION ───────────────────────────────────────────────────────
+
+function isBlurSupported(): boolean {
+  if (typeof window === 'undefined') return false;
+  const canvas = document.createElement('canvas');
+  const hasCapture = typeof canvas.captureStream === 'function';
+  const isChrome = /Chrome/.test(navigator.userAgent) && !/Edg|OPR/.test(navigator.userAgent);
+  return hasCapture && isChrome;
+}
+
+// ─── BLUR PREFERENCE KEY ─────────────────────────────────────────────────────
+
+const BLUR_PREF_KEY = 'instaroom:bgBlur';
+
+export function getBlurPreference(): boolean {
+  if (typeof window === 'undefined') return true;
+  const stored = localStorage.getItem(BLUR_PREF_KEY);
+  return stored === null ? true : stored === 'true'; // default on
+}
+
+// ─── COMPONENT ───────────────────────────────────────────────────────────────
+
 export default function VideoTab() {
   const [cameras,  setCameras]  = useState<MediaDeviceInfo[]>([]);
   const [mics,     setMics]     = useState<MediaDeviceInfo[]>([]);
@@ -11,8 +33,14 @@ export default function VideoTab() {
   const [selectedMic,     setSelectedMic]     = useState('');
   const [selectedSpeaker, setSelectedSpeaker] = useState('');
   const [loading, setLoading] = useState(true);
+  const [blurEnabled, setBlurEnabled] = useState(false);
+  const [blurSupported, setBlurSupported] = useState(false);
 
   useEffect(() => {
+    const supported = isBlurSupported();
+    setBlurSupported(supported);
+    if (supported) setBlurEnabled(getBlurPreference());
+
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then(() => navigator.mediaDevices.enumerateDevices())
       .then(devices => {
@@ -23,6 +51,12 @@ export default function VideoTab() {
       })
       .catch(() => setLoading(false));
   }, []);
+
+  function handleBlurToggle() {
+    const next = !blurEnabled;
+    setBlurEnabled(next);
+    localStorage.setItem(BLUR_PREF_KEY, String(next));
+  }
 
   if (loading) return (
     <div className="p-6">
@@ -88,13 +122,51 @@ export default function VideoTab() {
         </select>
       </div>
 
+      {/* Background Blur */}
+      <div className="flex flex-col gap-2">
+        <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">background blur</label>
+        <div className="flex items-center justify-between border border-[rgba(0,80,40,0.18)] p-3">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm font-mono text-[#1A2E1A]">
+              {blurSupported
+                ? 'Blur background during sessions'
+                : 'Background blur'}
+            </span>
+            <span className="text-[11px] font-mono text-[#7A9A7A]">
+              {blurSupported
+                ? '// powered by MediaDance · Chrome only'
+                : '// not supported in this browser — use Chrome'}
+            </span>
+          </div>
+
+          {blurSupported ? (
+            <button
+              onClick={handleBlurToggle}
+              className={`relative w-[44px] h-[24px] border transition-all flex-shrink-0 ${
+                blurEnabled
+                  ? 'bg-[#007A40] border-[#007A40]'
+                  : 'bg-transparent border-[rgba(0,80,40,0.3)]'
+              }`}
+              aria-label={blurEnabled ? 'Disable background blur' : 'Enable background blur'}
+            >
+              <span
+                className={`absolute top-[3px] w-[16px] h-[16px] bg-white transition-all ${
+                  blurEnabled ? 'left-[24px]' : 'left-[3px]'
+                }`}
+              />
+            </button>
+          ) : (
+            <span className="text-[10px] font-mono text-[#CC2200] tracking-widest uppercase">
+              unavailable
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Privacy note */}
       <div className="border border-[rgba(0,80,40,0.18)] p-3">
         <p className="text-[11px] text-[#7A9A7A] font-mono">
           // camera starts OFF by default in all sessions — your privacy first
-        </p>
-        <p className="text-[11px] text-[#7A9A7A] font-mono mt-1">
-          // background blur — coming in v1.1
         </p>
       </div>
     </div>

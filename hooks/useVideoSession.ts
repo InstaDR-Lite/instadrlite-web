@@ -2,6 +2,8 @@
 
 import { BlurOptions } from '@/packages/mediadance-sdk/dist/processors/BackgroundBlurProcessor';
 import { useState, useRef, useEffect } from 'react';
+import { getBlurPreference } from '@/components/settings/VideoTab';
+
 // import {  MediaDanceError } from '@mediadance/client-sdk';
 
 // Remove the import and define locally:
@@ -45,7 +47,7 @@ const initial: VideoSession = {
   remoteStream: null,
   view:         'compact',
   localMuted:   false,
-  videoOff:     false,
+  videoOff:     true,
   error:        null,
 };
 
@@ -119,22 +121,20 @@ export function useVideoSession() {
         serverUrl: signalingUrl
       });
 
-      clientRef.current.enableBackgroundBlur({
-        blurRadius: 20,      // px — increase for heavier blur
-        fps: 24,             // px — increase for heavier blur
-        modelSelection: 1    // 1 = landscape model, better for desktop clinical 
-      });
+      // enable/diable blur base on system settings
+      if (getBlurPreference()) {
+        clientRef.current.enableBackgroundBlur({ blurRadius: 20, fps: 24, modelSelection: 1 });
+      }
 
       // Register events immediately after creation
-      clientRef.current?.on('local-stream-ready', (stream: MediaStream) => {
-        console.log('[Debug] local-stream-ready fired');
+     clientRef.current?.on('local-stream-ready', (stream: MediaStream) => {
+        // Start with camera OFF
+        stream.getVideoTracks().forEach(track => { track.enabled = false; });
+        
         setLocalStream(stream);
-        update({ status: 'local_only' });
+        update({ status: 'local_only', videoOff: true });
         if (localVideoRef.current) {
-          console.log('[Debug] attaching to ref directly');
           localVideoRef.current.srcObject = stream;
-        } else {
-          console.log('[Debug] ref is null — will attach via useEffect');
         }
       });
 
