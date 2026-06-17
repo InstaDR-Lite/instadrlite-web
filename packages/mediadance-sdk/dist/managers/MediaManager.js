@@ -40,6 +40,9 @@ export class MediaManager {
     getStream() {
         return this.localStream;
     }
+    setStream(localStream) {
+        this.localStream = localStream;
+    }
     /**
      * Physically enables or disables tracks on the stream level to mute hardware
      */

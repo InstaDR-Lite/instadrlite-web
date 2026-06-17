@@ -8,6 +8,7 @@ export declare class MediaManager {
      * Returns the active local media stream reference
      */
     getStream(): MediaStream | null;
+    setStream(localStream: MediaStream): void;
     /**
      * Physically enables or disables tracks on the stream level to mute hardware
      */

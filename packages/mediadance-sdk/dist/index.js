@@ -6,12 +6,16 @@ import { WebRTCManager } from './managers/WebRTCManager.js';
 import { BitrateAdapter } from './modules/BitrateAdapter.js'; // 💡 Dropping in our adaptive engine
 import { MediaDanceError } from './types/errors.js';
 export { MediaDanceError } from './types/errors.js';
+import { BackgroundBlurProcessor } from './processors/BackgroundBlurProcessor.js';
 export class MediaDanceClient extends EventEmitter {
     media;
     signaling;
     rtc;
     config;
     bitrateAdapter = null; // 💡 Background adaptive tracking reference
+    blurProcessor = null;
+    blurEnabled = false;
+    blurOptions = {};
     constructor(config) {
         super();
         this.config = config || {
@@ -85,6 +89,29 @@ export class MediaDanceClient extends EventEmitter {
             await this.createCallOffer(data.socketID);
         });
     }
+    // ─── PUBLIC API ─────────────────────────────────────────────────────────────
+    /**
+     * Enable background blur. Call before startCall().
+     * If called mid-call, takes effect on next startCall().
+     *
+     * @param options - BlurOptions (blurRadius, fps, modelSelection)
+     */
+    enableBackgroundBlur(options = {}) {
+        this.blurEnabled = true;
+        this.blurOptions = options;
+        this.emit('status-update', 'Background blur enabled.');
+    }
+    /**
+     * Disable background blur and release processor resources.
+     */
+    disableBackgroundBlur() {
+        this.blurEnabled = false;
+        if (this.blurProcessor) {
+            this.blurProcessor.destroy();
+            this.blurProcessor = null;
+        }
+        this.emit('status-update', 'Background blur disabled.');
+    }
     /**
      * High-velocity entry-point for consumer frameworks (e.g., ZenSpace)
      */
@@ -95,7 +122,21 @@ export class MediaDanceClient extends EventEmitter {
         const targetUrl = signalingUrl || this.config.serverUrl;
         const effectiveToken = token || `mock_dev_token_${Date.now()}`;
         try {
-            const localStream = await this.media.captureLocalStream();
+            let localStream = await this.media.captureLocalStream();
+            if (this.blurEnabled) {
+                this.emit('status-update', 'Initializing background blur...');
+                try {
+                    this.blurProcessor = new BackgroundBlurProcessor(this.blurOptions);
+                    localStream = await this.blurProcessor.process(localStream);
+                    this.media.setStream(localStream);
+                    this.emit('status-update', 'Background blur active.');
+                }
+                catch (err) {
+                    console.error('[MediaDance] Blur init failed, falling back to raw stream:', err);
+                    this.emit('status-update', 'Background blur unavailable — using raw stream.');
+                    // fall through with raw stream
+                }
+            }
             this.emit('local-stream-ready', localStream);
             this.emit('status-update', 'Hardware audio/video tracks acquired.');
             this.emit('status-update', 'Authenticating with infrastructure...');
@@ -163,6 +204,8 @@ export class MediaDanceClient extends EventEmitter {
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
         }
+        this.blurProcessor?.destroy();
+        this.blurProcessor = null;
         if (this.signaling)
             this.signaling.disconnect();
         this.emit('status-update', 'Session gracefully terminated.');

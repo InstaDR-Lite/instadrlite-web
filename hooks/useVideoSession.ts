@@ -1,5 +1,6 @@
 'use client';
 
+import { BlurOptions } from '@/packages/mediadance-sdk/dist/processors/BackgroundBlurProcessor';
 import { useState, useRef, useEffect } from 'react';
 // import {  MediaDanceError } from '@mediadance/client-sdk';
 
@@ -14,6 +15,7 @@ interface MediaDanceClientInstance {
   on:          (event: string, handler: (...args: any[]) => void) => void;
   startCall:   (token: string, signalingUrl: string) => Promise<MediaStream>;
   disconnect?: () => Promise<void>;
+  enableBackgroundBlur: ({ blurRadius, fps, modelSelection }: BlurOptions) => void;
 }
 
 
@@ -91,7 +93,7 @@ export function useVideoSession() {
       },
     );
     const data = await res.json();
-    console.log('Token response:', data);
+    // console.log('[Debug] Token response:', data);
     return { token: data.token, signalingUrl: data.signalingUrl };
   }
 
@@ -107,12 +109,20 @@ export function useVideoSession() {
         credentials: 'include',
         body:        JSON.stringify({ status: 'in_session' })
       });
+      
       // After the status update fetch
-      console.log('[Provider] Updated status to in_session for room:', roomId);
-      // Create client
+      console.log('[Debug] Updated status to in_session for room:', roomId);
+      
+      // Create MediaDance client
       const { MediaDanceClient } = await import('@mediadance/client-sdk');
       clientRef.current = new MediaDanceClient({
         serverUrl: signalingUrl
+      });
+
+      clientRef.current.enableBackgroundBlur({
+        blurRadius: 20,      // px — increase for heavier blur
+        fps: 24,             // px — increase for heavier blur
+        modelSelection: 1    // 1 = landscape model, better for desktop clinical 
       });
 
       // Register events immediately after creation

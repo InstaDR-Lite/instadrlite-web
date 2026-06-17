@@ -2,6 +2,7 @@ import { EventEmitter } from './utils/EventEmitter.js';
 import { MediaDanceError } from './types/errors.js';
 export { MediaDanceError } from './types/errors.js';
 export type { MediaDanceErrorSeverity } from './types/errors.js';
+import { BlurOptions } from './processors/BackgroundBlurProcessor.js';
 export interface MediaDanceConfig {
     serverUrl: string;
     iceServers?: RTCIceServer[];
@@ -22,11 +23,25 @@ export declare class MediaDanceClient extends EventEmitter {
     private rtc;
     private config;
     private bitrateAdapter;
+    private blurProcessor;
+    private blurEnabled;
+    private blurOptions;
     constructor(config: MediaDanceConfig);
     /**
      * Links internal module events together and prepares messages to bubble up to the UI
      */
     private orchestrateEvents;
+    /**
+     * Enable background blur. Call before startCall().
+     * If called mid-call, takes effect on next startCall().
+     *
+     * @param options - BlurOptions (blurRadius, fps, modelSelection)
+     */
+    enableBackgroundBlur(options?: BlurOptions): void;
+    /**
+     * Disable background blur and release processor resources.
+     */
+    disableBackgroundBlur(): void;
     /**
      * High-velocity entry-point for consumer frameworks (e.g., ZenSpace)
      */

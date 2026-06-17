@@ -7,6 +7,10 @@ export class WebRTCManager extends EventEmitter {
         this.iceServers = iceServers;
     }
     initiateConnection(targetSocketId, localStream) {
+        if (this.pc) {
+            this.pc.close();
+            this.pc = null;
+        }
         this.pc = new RTCPeerConnection({ iceServers: this.iceServers });
         if (localStream) {
             localStream.getTracks().forEach((track) => this.pc.addTrack(track, localStream));
