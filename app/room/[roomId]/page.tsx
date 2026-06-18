@@ -118,17 +118,17 @@ export default function PatientGatePage() {
       clientRef.current = new MediaDanceClient({ serverUrl: data.signalingUrl });
 
       // browser check to enable disableblur
-      const canvas = document.createElement('canvas');
-      const blurSupported = typeof canvas.captureStream === 'function' &&
-        /Chrome/.test(navigator.userAgent) && !/Edg|OPR/.test(navigator.userAgent);
+      // const canvas = document.createElement('canvas');
+      // const blurSupported = typeof canvas.captureStream === 'function' &&
+      //   /Chrome/.test(navigator.userAgent) && !/Edg|OPR/.test(navigator.userAgent);
 
-      if (blurSupported) {
+      // if (blurSupported) {
         clientRef.current.enableBackgroundBlur({
           blurRadius: 20,
           fps: 24,
           modelSelection: 1,
         });
-      }
+      // }
 
       clientRef.current.on('local-stream-ready', (stream: MediaStream) => {
         setLocalStream(stream);
