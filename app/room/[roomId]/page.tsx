@@ -50,7 +50,7 @@ interface AppointmentData {
 interface MediaDanceClientInstance {
   on:          (event: string, handler: (...args: any[]) => void) => void;
   startCall:   (token: string, signalingUrl: string) => Promise<MediaStream>;
-  leave: () => Promise<void>;
+  disconnect?: () => Promise<void>;
   enableBackgroundBlur: ({ blurRadius, fps, modelSelection }: BlurOptions) => void;
 }
 
@@ -114,14 +114,20 @@ export default function PatientGatePage() {
       if (!data.success) throw new Error(data.error);
 
       const { MediaDanceClient } = await import('@mediadance/client-sdk');
-
       clientRef.current = new MediaDanceClient({ serverUrl: data.signalingUrl });
 
-      clientRef.current.enableBackgroundBlur({
-        blurRadius: 20,      // px — increase for heavier blur
-        fps: 24,             // px — increase for heavier blur
-        modelSelection: 1    // 1 = landscape model, better for desktop clinical 
-      });
+      // browser check to enable disableblur
+      const canvas = document.createElement('canvas');
+      const blurSupported = typeof canvas.captureStream === 'function' &&
+        /Chrome/.test(navigator.userAgent) && !/Edg|OPR/.test(navigator.userAgent);
+
+      if (blurSupported) {
+        clientRef.current.enableBackgroundBlur({
+          blurRadius: 20,
+          fps: 24,
+          modelSelection: 1,
+        });
+      }
 
       clientRef.current.on('local-stream-ready', (stream: MediaStream) => {
         setLocalStream(stream);
@@ -566,7 +572,7 @@ export default function PatientGatePage() {
         </button>
         <button
           onClick={() => {
-            clientRef.current?.leave();
+            clientRef.current?.disconnect?.();
             setStep('waiting');
           }}
           className="px-6 h-[32px] border border-[#CC2200] text-[10px] tracking-widest uppercase text-[#CC2200] hover:bg-[#CC2200] hover:text-[#F5F0E8] transition-all"

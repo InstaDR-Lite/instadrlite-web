@@ -47,7 +47,7 @@ const initial: VideoSession = {
   remoteStream: null,
   view:         'compact',
   localMuted:   false,
-  videoOff:     true,
+  videoOff:     false,
   error:        null,
 };
 
