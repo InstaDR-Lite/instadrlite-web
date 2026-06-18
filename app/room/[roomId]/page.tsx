@@ -7,6 +7,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import CopayForm from '@/components/patient/CopayForm';
 import { RemoteVideo } from '@/components/session/RemoteVideo';
+import { BlurOptions } from '@/packages/mediadance-sdk/dist/processors/BackgroundBlurProcessor';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -95,7 +96,7 @@ export default function PatientGatePage() {
   const [geoState, setGeoState] = useState<string | null>(null);
   const [consentChecked, setConsentChecked] = useState(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const videoRef = useState<HTMLVideoElement | null>(null);
+  
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
