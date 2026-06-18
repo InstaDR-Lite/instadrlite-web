@@ -72,12 +72,6 @@ export class MediaDanceClient extends EventEmitter {
             this.emit('status-update', 'Peer disconnected. Resetting pipeline...');
             this.rtc.closeConnection();
         });
-        // Catch 'peer-joined' from the server, and kick off the WebRTC offer pipeline
-        // this.signaling.on('peer-joined', async (data: { socketID: string; userID: string }) => {
-        //   this.emit('status-update', `Peer ${data.userID} detected. Initiating WebRTC Handshake...`);
-        //   await this.createCallOffer(data.socketID);
-        // });
-        // telehealth-sdk/src/index.ts -> inside orchestrateEvents()
         // Catch 'peer-joined' from the server, and kick off the WebRTC offer pipeline!
         this.signaling.on('peer-joined', async (data) => {
             // ✅ Call the newly exposed method cleanly
@@ -136,20 +130,26 @@ export class MediaDanceClient extends EventEmitter {
                 this.emit('status-update', 'Initializing background blur...');
                 try {
                     this.blurProcessor = new BackgroundBlurProcessor(this.blurOptions);
-                    localStream = await this.blurProcessor.process(localStream);
-                    this.media.setStream(localStream);
+                    // Kick off the processor. Ensure .process() returns a stream instantly,
+                    // or decouple the loop inside the processor itself.
+                    const processedStream = await this.blurProcessor.process(localStream);
+                    if (processedStream) {
+                        localStream = processedStream;
+                        this.media.setStream(localStream);
+                    }
                     this.emit('status-update', 'Background blur active.');
                 }
                 catch (err) {
                     console.error('[MediaDance] Blur init failed, falling back to raw stream:', err);
                     this.emit('status-update', 'Background blur unavailable — using raw stream.');
-                    // fall through with raw stream
                 }
             }
+            // 🚀 THIS IS NOW GUARANTEED TO RUN INSTEAD OF GETTING STUCK
             this.emit('local-stream-ready', localStream);
             this.emit('status-update', 'Hardware audio/video tracks acquired.');
             this.emit('status-update', 'Authenticating with infrastructure...');
             await this.signaling.connect(effectiveToken, targetUrl);
+            // Fire down the pipe!
             this.signaling.emitEvent('join-room', {});
             this.emit('status-update', 'Room allocation locked. Awaiting peer...');
             return localStream;

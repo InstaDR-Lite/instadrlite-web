@@ -38,7 +38,10 @@ export class BackgroundBlurProcessor {
         this.rawStream = rawStream;
         await this.loadMediaPipe();
         this.setupCanvas(rawStream);
-        this.startLoop();
+        // 🔥 THE FIX: Fire-and-forget the loop so it runs on the next event loop tick
+        setTimeout(() => {
+            this.startLoop();
+        }, 0);
         return this.outputStream;
     }
     /**
