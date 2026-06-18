@@ -58,5 +58,17 @@ export class WebRTCManager extends EventEmitter {
             console.log('Successfully appended remote ICE candidate.');
         }
     }
+    closeConnection() {
+        if (this.pc) {
+            this.pc.getSenders().forEach(sender => {
+                try {
+                    this.pc.removeTrack(sender);
+                }
+                catch (_) { }
+            });
+            this.pc.close();
+            this.pc = null;
+        }
+    }
 }
 //# sourceMappingURL=WebRTCManager.js.map

@@ -68,6 +68,10 @@ export class MediaDanceClient extends EventEmitter {
                 this.emit('error', error);
             }
         });
+        this.signaling.on('peer-disconnected', () => {
+            this.emit('status-update', 'Peer disconnected. Resetting pipeline...');
+            this.rtc.closeConnection();
+        });
         // Catch 'peer-joined' from the server, and kick off the WebRTC offer pipeline
         // this.signaling.on('peer-joined', async (data: { socketID: string; userID: string }) => {
         //   this.emit('status-update', `Peer ${data.userID} detected. Initiating WebRTC Handshake...`);
@@ -199,12 +203,15 @@ export class MediaDanceClient extends EventEmitter {
     /**
      * Explicitly closes networking channels and gives OS back mic/cam resources.
      */
-    leave() {
+    disconnect() {
         if (this.bitrateAdapter) {
             this.bitrateAdapter.stop();
             this.bitrateAdapter = null;
         }
-        // Explicitly shut down local devices so hardware lights go dark cleanly
+        // Close peer connection explicitly
+        if (this.rtc) {
+            this.rtc.closeConnection(); // or however RTCPeerConnection is exposed
+        }
         const stream = this.media.getStream();
         if (stream) {
             stream.getTracks().forEach(track => track.stop());

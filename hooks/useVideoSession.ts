@@ -16,7 +16,7 @@ interface MediaDanceError {
 interface MediaDanceClientInstance {
   on:          (event: string, handler: (...args: any[]) => void) => void;
   startCall:   (token: string, signalingUrl: string) => Promise<MediaStream>;
-  disconnect?: () => Promise<void>;
+  disconnect?: () => void;
   enableBackgroundBlur: ({ blurRadius, fps, modelSelection }: BlurOptions) => void;
 }
 

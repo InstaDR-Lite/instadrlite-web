@@ -13,5 +13,6 @@ export declare class WebRTCManager extends EventEmitter {
      * Appends an incoming network routing candidate to the live pipeline
      */
     handleRemoteIceCandidate(candidate: RTCIceCandidateInit): Promise<void>;
+    closeConnection(): void;
 }
 //# sourceMappingURL=WebRTCManager.d.ts.map

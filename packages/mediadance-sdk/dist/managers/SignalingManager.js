@@ -74,7 +74,12 @@ export class SignalingManager extends EventEmitter {
         this.socket.on('disconnect', (reason) => this.emit('disconnected', reason));
         // Pass the exact event straight from the server socket out to the orchestrator layer
         this.socket.on('peer-joined', (data) => this.emit('peer-joined', data));
-        this.socket.on('peer-notification', (data) => this.emit('peer-notification', data));
+        this.socket.on('peer-notification', (data) => {
+            if (data.type === 'peer-disconnected') {
+                this.emit('peer-disconnected', data);
+            }
+            this.emit('peer-notification', data);
+        });
         this.socket.on('ice-candidate', (data) => this.emit('ice-candidate', data));
     }
     emitEvent(event, data) {

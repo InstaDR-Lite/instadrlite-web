@@ -59,6 +59,6 @@ export declare class MediaDanceClient extends EventEmitter {
     /**
      * Explicitly closes networking channels and gives OS back mic/cam resources.
      */
-    leave(): void;
+    disconnect(): void;
 }
 //# sourceMappingURL=index.d.ts.map
