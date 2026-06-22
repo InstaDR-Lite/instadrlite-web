@@ -85,6 +85,9 @@ export class SignalingManager extends EventEmitter {
     emitEvent(event, data) {
         this.socket?.emit(event, data);
     }
+    get socketID() {
+        return this.socket?.id || null;
+    }
     disconnect() {
         this.socket?.disconnect();
     }

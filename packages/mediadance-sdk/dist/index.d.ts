@@ -23,6 +23,19 @@ export declare class MediaDanceClient extends EventEmitter {
     private rtc;
     private config;
     private bitrateAdapter;
+    private isCallEstablished;
+    /**
+     * Perfect Negotiation Tie-Breaker (Logical Lock)
+     * * Determines if this client instance is the 'polite' or 'impolite' peer.
+     * When an asynchronous SDP offer collision occurs (both clients attempt to
+     * initiate negotiation concurrently), the impolite peer ignores the incoming
+     * offer to maintain its state, while the polite peer rolls back its local
+     * description to accept the remote offer.
+     * * Using alphabetical comparison of Socket IDs ensures a globally unique,
+     * deterministic decision on both sides without centralized synchronization.
+     */
+    private isPolite;
+    private iceCandidateQueue;
     private blurProcessor;
     private blurEnabled;
     private blurOptions;
@@ -46,6 +59,7 @@ export declare class MediaDanceClient extends EventEmitter {
      * High-velocity entry-point for consumer frameworks (e.g., ZenSpace)
      */
     startCall(token?: string, signalingUrl?: string): Promise<MediaStream>;
+    activateAndPublishMedia(useBlur: boolean): Promise<MediaStream | null>;
     /**
      * Generates and transmits an initial WebRTC offer to a newly joined peer.
      */

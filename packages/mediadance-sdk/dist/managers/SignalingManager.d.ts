@@ -26,6 +26,7 @@ export declare class SignalingManager extends EventEmitter {
      */
     private setupListeners;
     emitEvent(event: string, data: any): void;
+    get socketID(): string | null;
     disconnect(): void;
 }
 //# sourceMappingURL=SignalingManager.d.ts.map

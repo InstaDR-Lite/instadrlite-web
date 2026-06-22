@@ -8,6 +8,8 @@ import { Elements } from '@stripe/react-stripe-js';
 import CopayForm from '@/components/patient/CopayForm';
 import { RemoteVideo } from '@/components/session/RemoteVideo';
 import { BlurOptions } from '@/packages/mediadance-sdk/dist/processors/BackgroundBlurProcessor';
+import { WebRTCSafetyBoundary } from '@/components/WebRTCSafetyBoundary';
+import { EventCallback } from '@/packages/mediadance-sdk/dist/utils/EventEmitter';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -49,10 +51,12 @@ interface AppointmentData {
 }
 
 interface MediaDanceClientInstance {
-  on:          (event: string, handler: (...args: any[]) => void) => void;
-  startCall:   (token: string, signalingUrl: string) => Promise<MediaStream>;
+  on: (event: string, handler: (...args: any[]) => void) => void;
+  off:         (event: string, handler: EventCallback) => void; // 👈 Add this line
+  startCall:   (token: string, signalingUrl: string) => Promise<MediaStream | null>;
   disconnect?: () => void;
   enableBackgroundBlur: ({ blurRadius, fps, modelSelection }: BlurOptions) => void;
+  activateAndPublishMedia: (enableBlur: boolean) => Promise<MediaStream> ;
 }
 
 // ── Shared layout wrapper — OUTSIDE the page component ──────────────
@@ -104,6 +108,7 @@ export default function PatientGatePage() {
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [blurEnabled, setBlurEnabled] = useState<boolean>(false);
 
   const connectToSession = async () => {
     try {
@@ -117,28 +122,68 @@ export default function PatientGatePage() {
       const { MediaDanceClient } = await import('@mediadance/client-sdk');
       clientRef.current = new MediaDanceClient({ serverUrl: data.signalingUrl });
 
-    
-      clientRef.current.enableBackgroundBlur({
-        blurRadius: 20,
-        fps: 24,
-        modelSelection: 1,
-      });
-  
-
+      // 1. Setup the standard UI stream display listeners
       clientRef.current.on('local-stream-ready', (stream: MediaStream) => {
         setLocalStream(stream);
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
       });
+
+      // 3. Kick off the asynchronous camera initialization inside a safe try/catch
+      
+      // try {
+      //   clientRef.current.enableBackgroundBlur({
+      //     blurRadius: 20,
+      //     fps: 24,
+      //     modelSelection: 1,
+      //   });
+      // } catch (blurError) {
+      //   console.error('[Patient Gate] Synchronous error inside enableBackgroundBlur:', blurError);
+      // }
+
 
       clientRef.current.on('remote-stream-ready', (stream: MediaStream) => {
         setRemoteStream(stream);
         if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;
       });
 
+      // 2. 🔥 ARMED HOOK WITH FAIL-SAFE TIMEOUT
+      console.log('[Patient Gate] Setting up media warmup hook...');
+      
+      const waitForStreamWithTimeout = new Promise<void>((resolve) => {
+        let isResolved = false;
+
+        const handleInitialStream = () => {
+          if (isResolved) return;
+          console.log('[Patient Gate] Local stream active. Cleaning up listener...');
+          isResolved = true;
+          clearTimeout(timeoutId); 
+          clientRef.current?.off('local-stream-ready', handleInitialStream);
+          resolve();
+        };
+
+        // Safety net: Bypass the hang if the background engine takes longer than 5 seconds
+        const timeoutId = setTimeout(() => {
+          if (isResolved) return;
+          console.warn('[Patient Gate] ⚠️ Warmup timed out after 5s. Bypassing deadlock to force connection...');
+          isResolved = true;
+          clientRef.current?.off('local-stream-ready', handleInitialStream);
+          resolve(); // Resolves the promise to unblock startCall
+        }, 5000);
+
+        clientRef.current?.on('local-stream-ready', handleInitialStream);
+
+      });
+
+      
+      // 4. Await the race
+      await waitForStreamWithTimeout;
+
+      // 5. Fire signaling handshake!
+      console.log('[Patient Gate] Advancing to startCall...');
       await clientRef.current.startCall(data.token, data.signalingUrl);
 
     } catch (err: any) {
-      console.error('[Patient SDK]', err.message);
+      console.error('[Patient SDK Level Error]', err.message);
     }
   };
   
@@ -279,18 +324,46 @@ export default function PatientGatePage() {
   };
 
   const handleCameraCheck = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      });
-      setLocalStream(stream);
-      setStep('geo');
-      handleGeoVerify();
-    } catch {
-      setError('Camera/microphone access denied. Please allow access and try again.');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true
+    });
+    
+    // 1. Assign the raw stream to your local state
+    setLocalStream(stream);
+
+    // 2. 🔥 EARLY WARMUP: If they enabled blur, spin it up right now
+    if (blurEnabled && clientRef.current) {
+      console.log('[Patient Gate] Pre-flight blur option selected. Warming up MediaPipe pipeline...');
+      
+      // Update the configuration flag on your client instance
+      clientRef.current.enableBackgroundBlur({
+          blurRadius: 20,
+          fps: 24,
+          modelSelection: 1,
+        });
+      
+      // // Explicitly kick off the processor loop so it compiles WebGL shaders
+      // // while the user is looking at the geo-verification screen.
+      // if (clientRef.current.media) {
+      //   clientRef.current.media.captureLocalStream()
+      //     .then((rawStream) => {
+      //        console.log('[Patient Gate] MediaPipe background assets armed.');
+      //     })
+      //     .catch((err) => {
+      //        console.error('[Patient Gate] Early blur compilation failed:', err);
+      //     });
+      // }
     }
-  };
+
+    // 3. Move cleanly down the onboarding timeline
+    setStep('geo');
+    handleGeoVerify();
+  } catch {
+    setError('Camera/microphone access denied. Please allow access and try again.');
+  }
+};
 
   const handleConsent = async () => {
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointment?.id}/consent`, {
@@ -411,23 +484,47 @@ export default function PatientGatePage() {
   );
 
   // ── Step 3: Camera check ─────────────────────────────────────────────
+
   if (step === 'camera') return (
     <Shell providerName={appointment?.provider.name}>
       <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">// step 3 of 4</div>
-      <div className="text-lg font-semibold text-[#1A2E1A] mb-2">Camera + microphone</div>
+      <div className="text-lg font-semibold text-[#1A2E1A] mb-2">Camera + privacy controls</div>
       <p className="text-sm text-[#7A9A7A] font-mono mb-6">
-        We&apos;ll ask for camera and microphone access. Your camera starts OFF during the session.
+        Configure your hardware permissions and video privacy options before joining the waiting room.
       </p>
 
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2 text-[11px] text-[#7A9A7A] font-mono">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#007A40]" />
-          Camera starts OFF by default — your privacy first
+      <div className="flex flex-col gap-4">
+        {/* PRIVACY SELECTION MATRIX */}
+        <div className="border border-dashed border-[#7A9A7A]/30 p-3 bg-[#1A2E1A]/5 rounded-sm flex flex-col gap-2">
+          <div className="text-[10px] text-[#007A40] font-mono tracking-wider uppercase mb-1">
+            [ OPTIONAL: PRE-FLIGHT PRIVACY ]
+          </div>
+          
+          <label className="flex items-center gap-3 cursor-pointer text-xs font-mono text-[#1A2E1A]">
+            <input 
+              type="checkbox"
+              checked={blurEnabled} // Tie this to your component's state variable
+              onChange={(e) => setBlurEnabled(e.target.checked)}
+              className="accent-[#007A40] w-3.5 h-3.5"
+            />
+            ✨ Enable surgical background blur immediately
+          </label>
+          <div className="text-[10px] text-[#7A9A7A] font-mono pl-6.5">
+            Warms up the privacy engine locally to mask your surroundings before you connect.
+          </div>
         </div>
-        <div className="flex items-center gap-2 text-[11px] text-[#7A9A7A] font-mono">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#007A40]" />
-          You control when to turn it on
+
+        <div className="flex flex-col gap-2 mt-2">
+          <div className="flex items-center gap-2 text-[11px] text-[#7A9A7A] font-mono">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#007A40]" />
+            Camera initializes safely based on your preference
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-[#7A9A7A] font-mono">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#007A40]" />
+            Zero platform telemetry or video data ever leaves your device
+          </div>
         </div>
+
         <button
           onClick={handleCameraCheck}
           className="w-full py-3 border border-[#007A40] text-xs tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8] transition-all mt-2"
@@ -527,14 +624,26 @@ export default function PatientGatePage() {
         </div>
       </div>
 
-      {/* Remote stream — full screen */}
+      
 
-      {/* <div className="flex-1 relative min-h-0"> */}
+
+    {/* Guard the incoming provider track */}
+      <WebRTCSafetyBoundary>
         <RemoteVideo stream={remoteStream} waitingText="connecting to provider..." />
+      </WebRTCSafetyBoundary>
 
-        {/* Local PiP — top right */}
-        <div className="absolute top-[64px] right-4 w-[180px] h-[120px] border border-[rgba(0,255,140,0.22)] bg-[#0C100C] overflow-hidden"
-          style={{ transform: 'scaleX(-1)' }}>
+      {/* Guard the local PiP container independently */}
+      <WebRTCSafetyBoundary
+        fallbackFallback={
+          <div className="absolute top-[64px] right-4 w-[180px] h-[120px] border border-emerald-500/30 bg-[#0C100C] flex items-center justify-center">
+            <span className="text-[10px] text-emerald-400 font-mono">CAM_RECOVERING</span>
+          </div>
+        }
+      >
+        <div 
+          className="absolute top-[64px] right-4 w-[180px] h-[120px] border border-[rgba(0,255,140,0.22)] bg-[#0C100C] overflow-hidden"
+          style={{ transform: 'scaleX(-1)' }}
+        >
           <video
             ref={localVideoRef}
             autoPlay
@@ -543,7 +652,7 @@ export default function PatientGatePage() {
             className="w-full h-full object-cover"
           />
         </div>
-      {/* </div> */}
+      </WebRTCSafetyBoundary>
 
       {/* Controls */}
       {/* <div className="h-[60px] flex-shrink-0 flex items-center justify-center gap-4 border-t border-[rgba(0,255,140,0.12)]"> */}

@@ -15,9 +15,10 @@ interface MediaDanceError {
 
 interface MediaDanceClientInstance {
   on:          (event: string, handler: (...args: any[]) => void) => void;
-  startCall:   (token: string, signalingUrl: string) => Promise<MediaStream>;
+  startCall:   (token: string, signalingUrl: string) => Promise<MediaStream | null>;
   disconnect?: () => void;
   enableBackgroundBlur: ({ blurRadius, fps, modelSelection }: BlurOptions) => void;
+  activateAndPublishMedia: (enableBlur: boolean) => Promise<MediaStream> ;
 }
 
 
@@ -47,7 +48,7 @@ const initial: VideoSession = {
   remoteStream: null,
   view:         'compact',
   localMuted:   false,
-  videoOff:     false,
+  videoOff:     true,
   error:        null,
 };
 
@@ -64,11 +65,8 @@ export function useVideoSession() {
   const [localStream,  setLocalStream]  = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
-  const update = (patch: Partial<VideoSession>) =>
-    setSession(prev => ({ ...prev, ...patch }));
+  const update = (patch: Partial<VideoSession>) => setSession(prev => ({ ...prev, ...patch }));
 
-  // Attach streams to video elements when both are ready
-  // Attach local stream when ref becomes available
   useEffect(() => {
     if (localStream && localVideoRef.current) {
       console.log('[Debug] useEffect attaching local stream');
@@ -122,9 +120,9 @@ export function useVideoSession() {
       });
 
       // enable/diable blur base on system settings
-      if (getBlurPreference()) {
-        clientRef.current.enableBackgroundBlur({ blurRadius: 20, fps: 24, modelSelection: 1 });
-      }
+      // if (getBlurPreference()) {
+      //   clientRef.current.enableBackgroundBlur({ blurRadius: 20, fps: 24, modelSelection: 1 });
+      // }
 
       // Register events immediately after creation
      clientRef.current?.on('local-stream-ready', (stream: MediaStream) => {
@@ -136,6 +134,10 @@ export function useVideoSession() {
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
+     });
+      
+      clientRef.current?.on('peer-joined', (data) => {
+        console.log('[Provider] peer-joined received, initiating offer', data);
       });
 
       clientRef.current?.on('remote-stream-ready', (stream: MediaStream) => {
@@ -184,11 +186,60 @@ export function useVideoSession() {
     }
   }
 
-  function toggleVideo() {
-    const track = localStream?.getVideoTracks()[0];
-    if (track) {
-      track.enabled = !track.enabled;
-      update({ videoOff: !session.videoOff });
+  const toggleVideoNoBlur = async () => {
+    // 1. Grab the stream that was already created during startCall
+    const rawStream = localStream; 
+    if (!rawStream) return;
+
+    // 2. Simply flip the hardware track state directly without touching the SDK connection
+    const videoTrack = rawStream.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      console.log(`[Debug] Video track hardware toggled to: ${videoTrack.enabled}`);
+      
+      // 3. Force React to trigger its layout rendering effect by passing a shallow copy
+      setLocalStream(new MediaStream(rawStream.getTracks()));
+    }
+  };
+  
+  async function toggleVideo() {
+    // 1. Determine action explicitly by what the UI state says
+    const isCurrentlyOff = session.videoOff; 
+
+    if (isCurrentlyOff) {
+      // 🚀 ACTION: TURN CAMERA ON
+      console.log('[useVideoSession]: Running activation pipeline (Turning Cam ON)...');
+      
+      let rawStream = localVideoRef.current?.srcObject as MediaStream | null;
+      
+      // Cold boot check: if we don't have tracks yet, compile them now
+      if (!rawStream && getBlurPreference() ) {
+
+        rawStream = await clientRef.current?.activateAndPublishMedia(true) as MediaStream;
+        if (rawStream && localVideoRef.current) {
+          setLocalStream(rawStream);
+        }
+      } else {
+        // Warm boot: tracks exist, just unmute them
+        rawStream!.getVideoTracks()[0].enabled = true;
+      }
+
+      
+
+      // Force explicit state: Video is no longer off
+      update({ videoOff: false });
+
+    } else {
+      // 🛑 ACTION: TURN CAMERA OFF
+      console.log('[useVideoSession]: Running deactivation pipeline (Turning Cam OFF)...');
+      
+      const track = localStream?.getVideoTracks()[0];
+      if (track) {
+        track.enabled = false; // Safely mute the hardware stream
+      }
+
+      // Force explicit state: Video is now off
+      update({ videoOff: true });
     }
   }
 

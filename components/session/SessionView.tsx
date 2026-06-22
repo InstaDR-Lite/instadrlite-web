@@ -5,6 +5,7 @@ import { Appointment } from '@/app/dashboard/page';
 import { VideoSession } from '@/hooks/useVideoSession';
 import { RefObject, useEffect } from 'react';
 import { RemoteVideo } from './RemoteVideo';
+import { WebRTCSafetyBoundary } from '../WebRTCSafetyBoundary';
 
 interface Props {
   appointment:    Appointment;
@@ -56,13 +57,21 @@ export default function SessionView({
         </button>
       </div>
 
-      {/* video stuff */}
-      {/* <div className="flex-1 relative bg-[#080B08] min-h-0"> */}
+      {/* video stuff wrapped in our silent guard */}
+      <WebRTCSafetyBoundary>
         <RemoteVideo stream={remoteStream} status={session.status} />
+      </WebRTCSafetyBoundary>
 
-        {/* Local PiP — top right */}
+      {/* Local PiP — top right, guarded independently */}
+      <WebRTCSafetyBoundary
+        fallbackFallback={
+          <div className="absolute top-[64px] right-4 w-[180px] h-[120px] border border-red-500/30 bg-[#0C100C] flex items-center justify-center">
+            <span className="text-[10px] text-zinc-500">Cam Error</span>
+          </div>
+        }
+      >
         <div
-          className="absolute top-[64px] right-4 w-[180px] h-[120px] border border-[rgba(221, 234, 229, 0.22)] bg-[#0C100C] overflow-hidden"
+          className="absolute top-[64px] right-4 w-[180px] h-[120px] border border-[rgba(221,234,229,0.22)] bg-[#0C100C] overflow-hidden"
           style={{ transform: 'scaleX(-1)' }}
         >
           <video
@@ -73,7 +82,7 @@ export default function SessionView({
             className="w-full h-full object-cover"
           />
         </div>
-      {/* </div> */}
+      </WebRTCSafetyBoundary>
 
       {/* Controls */}
       <div className="h-[64px] flex-shrink-0 flex items-center justify-center gap-4 border-t border-[rgba(0,255,140,0.12)]">

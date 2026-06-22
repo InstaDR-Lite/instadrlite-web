@@ -12,12 +12,45 @@ export class WebRTCManager extends EventEmitter {
             this.pc = null;
         }
         this.pc = new RTCPeerConnection({ iceServers: this.iceServers });
+        // Inside your PeerConnection initialization (e.g., right before connecting signaling)
+        // this.pc.addTransceiver('audio', { direction: 'sendrecv' });
+        // this.pc.addTransceiver('video', { direction: 'sendrecv' });
         if (localStream) {
             localStream.getTracks().forEach((track) => this.pc.addTrack(track, localStream));
         }
+        // 🔥 1. LISTEN FOR LATE TRACK INJECTIONS (STATE-SAFE)
+        // this.pc.onnegotiationneeded = async () => {
+        //   try {
+        //     console.log('[WebRTCManager] 🔄 Track modification detected. Renegotiating...');
+        //     // 🛡️ THE BULLETPROOF STATE GUARD
+        //     // If the signaling state isn't perfectly stable, or if it's currently processing 
+        //     // the initial handshake, block automated renegotiation to prevent m-line scrambling.
+        //     if (this.pc!.signalingState !== "stable") {
+        //       console.warn('[WebRTCManager] 🛑 Renegotiation blocked. Signaling state is unstable: %s', this.pc!.signalingState);
+        //       return;
+        //     }
+        //     // Generate updated SDP offer reflecting the newly added tracks
+        //     const offer = await this.pc!.createOffer();
+        //     await this.pc!.setLocalDescription(offer);
+        //     // Emit an event up to your client to send the offer over the socket
+        //     this.emit('renegotiation-needed', { 
+        //       target: targetSocketId, 
+        //       sdp: this.pc!.localDescription 
+        //     });
+        //   } catch (err) {
+        //     console.error('[WebRTCManager] Mid-session negotiation failed:', err);
+        //   }
+        // };
         this.pc.onicecandidate = (event) => {
             if (event.candidate) {
                 this.emit('ice-candidate-generated', { target: targetSocketId, candidate: event.candidate });
+            }
+        };
+        this.pc.onconnectionstatechange = () => {
+            console.log('[WebRTCManager] 📡 Connection state changed to:', this.pc?.connectionState);
+            if (this.pc?.connectionState === 'connected') {
+                // Expose this up to your main client wrapper
+                this.emit('connection-established');
             }
         };
         this.pc.ontrack = (event) => {
