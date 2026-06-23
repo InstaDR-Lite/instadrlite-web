@@ -183,9 +183,18 @@ export class MediaDanceClient extends EventEmitter {
             // ✅ NEW WAY: Clean, type-safe string comparison with zero collisions
             this.isPolite = localSocketID < remoteSocketID;
             console.log(`[MediaDance SDK] Negotiation Role Settled. Am I polite? ${this.isPolite}`);
-            this.emit('status-update', `Peer ${userID} detected. Initiating WebRTC Handshake...`);
-            // Use the socketID sent by the server to target the connection offer
-            await this.createCallOffer(socketID);
+            // 🛑 THE FIX: Force asymmetrical initiation on Attempt 0
+            if (!this.isPolite) {
+                console.log('[MediaDance SDK] I am IMPOLITE. Driving the initial offer...');
+                this.emit('status-update', `Peer ${userID} detected. Initiating WebRTC Handshake...`);
+                // Only the impolite peer initiates the call
+                await this.createCallOffer(socketID);
+            }
+            else {
+                console.log('[MediaDance SDK] I am POLITE. Standing by to accept incoming remote offer...');
+                this.emit('status-update', `Peer ${userID} detected. Ready to receive handshake...`);
+                // The polite peer does nothing here; it waits for the 'offer' signal handler to fire
+            }
         });
     }
     // ─── PUBLIC API ─────────────────────────────────────────────────────────────
@@ -227,23 +236,24 @@ export class MediaDanceClient extends EventEmitter {
         const effectiveToken = token || `mock_dev_token_${Date.now()}`;
         try {
             let localStream = await this.media.captureLocalStream();
-            // if (this.blurEnabled) {
-            //   this.emit('status-update', 'Initializing background blur...');
-            //   try {
-            //     this.blurProcessor = new BackgroundBlurProcessor(this.blurOptions);
-            //     // Kick off the processor. Ensure .process() returns a stream instantly,
-            //     // or decouple the loop inside the processor itself.
-            //     const processedStream = await this.blurProcessor.process(localStream);
-            //     if (processedStream) {
-            //       localStream = processedStream;
-            //       this.media.setStream(localStream);
-            //     }
-            //     this.emit('status-update', 'Background blur active.');
-            //   } catch (err) {
-            //     console.error('[MediaDance] Blur init failed, falling back to raw stream:', err);
-            //     this.emit('status-update', 'Background blur unavailable — using raw stream.');
-            //   }
-            // }
+            if (this.blurEnabled) {
+                this.emit('status-update', 'Initializing background blur...');
+                try {
+                    this.blurProcessor = new BackgroundBlurProcessor(this.blurOptions);
+                    // Kick off the processor. Ensure .process() returns a stream instantly,
+                    // or decouple the loop inside the processor itself.
+                    const processedStream = await this.blurProcessor.process(localStream);
+                    if (processedStream) {
+                        localStream = processedStream;
+                        this.media.setStream(localStream);
+                    }
+                    this.emit('status-update', 'Background blur active.');
+                }
+                catch (err) {
+                    console.error('[MediaDance] Blur init failed, falling back to raw stream:', err);
+                    this.emit('status-update', 'Background blur unavailable — using raw stream.');
+                }
+            }
             // 🚀 THIS IS NOW GUARANTEED TO RUN INSTEAD OF GETTING STUCK
             this.emit('local-stream-ready', localStream);
             this.emit('status-update', 'Hardware audio/video tracks acquired.');
