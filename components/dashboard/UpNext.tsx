@@ -20,7 +20,6 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
     remoteVideoRef,
     startSession,
     handleAdmitClick,
-    patientWaiting,
     endSession,
     toggleMute,
     toggleVideo,
@@ -39,7 +38,6 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
         remoteStream={remoteStream}
         localVideoRef={localVideoRef}
         remoteVideoRef={remoteVideoRef}
-        patientWaiting={patientWaiting}
         handleAdmit={handleAdmitClick}
         onEnd={endSession}
         onToggleMute={toggleMute}
