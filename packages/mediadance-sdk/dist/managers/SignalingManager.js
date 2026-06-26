@@ -61,6 +61,12 @@ export class SignalingManager extends EventEmitter {
                 console.error('[SDK Signaling] Cryptographic Handshake rejection:', error.message);
                 reject(error);
             });
+            this.socket.on('patient-admitted', () => {
+                console.log('[MediaDanceClient SDK] Caught network packet! Forwarding to UI...');
+                console.log('Current registered listeners for patient-admitted:', this.listeners.get('patient-admitted'));
+                // This kicks off your custom EventEmitter Map so patientGate.tsx catches it!
+                this.emit('patient-admitted');
+            });
         });
     }
     /**

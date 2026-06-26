@@ -169,6 +169,13 @@ export class MediaDanceClient extends EventEmitter {
             this.emit('status-update', 'Peer disconnected. Resetting pipeline...');
             this.rtc.closeConnection();
         });
+        // ─── EVENT BUBBLING BRIDGE ───
+        // Intercept the network-level event from the SignalingManager instance 
+        // and bubble it up to the MediaDanceClient emitter layer so UI components can catch it.
+        this.signaling.on('patient-admitted', (...args) => {
+            console.log('[MediaDanceClient] Bubbling event up to UI listeners...');
+            this.emit('patient-admitted', ...args);
+        });
         // Catch 'peer-joined' from the server, and kick off the WebRTC offer pipeline!
         this.signaling.on('peer-joined', async ({ userID, role, socketID }) => {
             // 1. Safely read from our new public getter
@@ -220,6 +227,17 @@ export class MediaDanceClient extends EventEmitter {
         }
         this.emit('status-update', 'Background blur disabled.');
     }
+    // Inside class MediaDanceClient
+    joinLobby() {
+        // Pass the event directly to your internal signaling instance
+        this.signaling.emitEvent('join-lobby', {});
+        this.emit('status-update', 'Entered virtual waiting lobby...');
+    }
+    // Inside class MediaDanceClient
+    // Inside your MediaDanceClient class definition:
+    getSocketId() {
+        return this.signaling.socketID; // or whatever your internal socket variable name is
+    }
     /**
      * High-velocity entry-point for consumer frameworks (e.g., ZenSpace)
      */
@@ -270,6 +288,60 @@ export class MediaDanceClient extends EventEmitter {
             throw platformError;
         }
     }
+    // Phase 1 — media only
+    async initMedia() {
+        const rawStream = await this.media.captureLocalStream();
+        // Emit raw stream immediately — video appears right away
+        this.emit('local-stream-ready', rawStream);
+        this.emit('status-update', 'Hardware audio/video tracks acquired.');
+        // Blur warms up in background — non-blocking
+        if (this.blurEnabled) {
+            this.initBlurAsync(rawStream);
+        }
+        return rawStream;
+    }
+    async initBlurAsync(rawStream) {
+        try {
+            this.blurProcessor = new BackgroundBlurProcessor(this.blurOptions);
+            const processedStream = await this.blurProcessor.process(rawStream);
+            this.media.setStream(processedStream);
+            // Update local preview with blurred stream
+            // this.emit('local-stream-ready', processedStream);
+            this.emit('blur-ready', processedStream);
+            this.emit('status-update', 'Background blur active.');
+        }
+        catch (err) {
+            console.error('[MediaDance] Blur failed silently:', err);
+        }
+    }
+    // Phase 2 — signaling only, no join-room
+    async connectSignaling(token, signalingUrl) {
+        const targetUrl = signalingUrl || this.config.serverUrl;
+        const effectiveToken = token || `mock_dev_token_${Date.now()}`;
+        this.emit('status-update', 'Authenticating with infrastructure...');
+        await this.signaling.connect(effectiveToken, targetUrl);
+        this.emit('status-update', 'Signaling connected. Awaiting admit...');
+    }
+    // Phase 3 — join room, triggers WebRTC handshake
+    joinRoom() {
+        this.signaling.emitEvent('join-room', {});
+        this.emit('status-update', 'Room allocation locked. Awaiting peer...');
+    }
+    admitPatient() {
+        this.signaling.emitEvent('admit-patient', {});
+        this.emit('status-update', 'Sending admission token to patient...');
+    }
+    // Keep startCall for backward compatibility — provider still uses it
+    // but internally split into phases
+    // public async startCall(token?: string, signalingUrl?: string): Promise<MediaStream> {
+    //   if (typeof window === 'undefined') {
+    //     throw new Error('startCall can only be executed in browser contexts.');
+    //   }
+    //   const stream = await this.initMedia();
+    //   await this.connectSignaling(token, signalingUrl);
+    //   this.joinRoom();
+    //   return stream;
+    // }
     // public async startCall(token?: string, signalingUrl?: string): Promise<MediaStream | null> {
     //   if (typeof window === 'undefined') {
     //     throw new Error('startCall can only be executed in browser contexts.');

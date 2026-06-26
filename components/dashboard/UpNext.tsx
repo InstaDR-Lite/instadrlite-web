@@ -11,6 +11,7 @@ interface Props {
 }
 
 export default function UpNext({ appointment, isMobile = false }: Props) {
+
   const {
     session,
     localStream,
@@ -18,13 +19,16 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
     localVideoRef,
     remoteVideoRef,
     startSession,
+    handleAdmitClick,
+    patientWaiting,
     endSession,
     toggleMute,
     toggleVideo,
     expandFullscreen,
     collapseFullscreen,
   } = useVideoSession();
-    
+  
+  
   // State 3 — fullscreen overlay
   if (session.view === 'fullscreen') {
     return (
@@ -35,6 +39,8 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
         remoteStream={remoteStream}
         localVideoRef={localVideoRef}
         remoteVideoRef={remoteVideoRef}
+        patientWaiting={patientWaiting}
+        handleAdmit={handleAdmitClick}
         onEnd={endSession}
         onToggleMute={toggleMute}
         onToggleVideo={toggleVideo}

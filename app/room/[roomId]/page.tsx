@@ -10,6 +10,8 @@ import { RemoteVideo } from '@/components/session/RemoteVideo';
 import { BlurOptions } from '@/packages/mediadance-sdk/dist/processors/BackgroundBlurProcessor';
 import { WebRTCSafetyBoundary } from '@/components/WebRTCSafetyBoundary';
 import { EventCallback } from '@/packages/mediadance-sdk/dist/utils/EventEmitter';
+import { getBlurPreference } from '@/components/settings/VideoTab';
+
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -56,7 +58,11 @@ interface MediaDanceClientInstance {
   startCall:   (token: string, signalingUrl: string) => Promise<MediaStream | null>;
   disconnect?: () => void;
   enableBackgroundBlur: ({ blurRadius, fps, modelSelection }: BlurOptions) => void;
-  activateAndPublishMedia: (enableBlur: boolean) => Promise<MediaStream> ;
+  activateAndPublishMedia: (enableBlur: boolean) => Promise<MediaStream | null>;
+  initMedia(): Promise<MediaStream>;
+  connectSignaling(token?: string, signalingUrl?: string): Promise<void>;
+  joinRoom(): void;
+  joinLobby(): void;
 }
 
 // ── Shared layout wrapper — OUTSIDE the page component ──────────────
@@ -90,6 +96,7 @@ function Shell({
 }
 
 export default function PatientGatePage() {
+  
   const params = useParams();
   const roomId = params.roomId as string;
 
@@ -110,7 +117,59 @@ export default function PatientGatePage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [blurEnabled, setBlurEnabled] = useState<boolean>(false);
 
-  const connectToSession = async () => {
+  // In your root layout or early in the page lifecycle
+  // Before any session starts — just load the WASM, don't run segmentation
+  
+
+   useEffect(() => {
+    console.log('[Patient Gate] localStream useEffect fired', {
+      hasRef: !!localVideoRef.current,
+      hasStream: !!localStream,
+    });
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
+
+    // Attach remote stream when ref becomes available  
+    useEffect(() => {
+      if (remoteStream && remoteVideoRef.current) {
+        console.log('[Debug] useEffect attaching remote stream');
+        remoteVideoRef.current.srcObject = remoteStream;
+      }
+    }, [remoteStream]);
+
+  
+  // Remove polling, call warmupMedia() after prechecks
+
+  const waitForStreamWithTimeout = (): Promise<void> => {
+    return new Promise<void>((resolve) => {
+      let isResolved = false;
+
+      const handleInitialStream = () => {
+        if (isResolved) return;
+        console.log('[Patient Gate] Local stream active. Cleaning up listener...');
+        isResolved = true;
+        clearTimeout(timeoutId);
+        clientRef.current?.off('local-stream-ready', handleInitialStream);
+        resolve();
+      };
+
+      const timeoutId = setTimeout(() => {
+        if (isResolved) return;
+        console.warn('[Patient Gate] ⚠️ Warmup timed out after 5s. Bypassing...');
+        isResolved = true;
+        clientRef.current?.off('local-stream-ready', handleInitialStream);
+        resolve();
+      }, 5000);
+
+      clientRef.current?.on('local-stream-ready', handleInitialStream);
+    });
+  };
+  
+  // Called after prechecks complete — Phase 1 + 2
+  const warmupSession = async () => {
+    console.log('[Patient Gate] warmupSession fired, current step:', step);
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/room/${roomId}/guest-token`,
@@ -121,71 +180,139 @@ export default function PatientGatePage() {
 
       const { MediaDanceClient } = await import('@mediadance/client-sdk');
       clientRef.current = new MediaDanceClient({ serverUrl: data.signalingUrl });
+      
+      clientRef.current.initMedia();
 
-      // 1. Setup the standard UI stream display listeners
+      // UI listeners
       clientRef.current.on('local-stream-ready', (stream: MediaStream) => {
+        console.log('[Patient Gate] local-stream-ready — ref null?', !localVideoRef.current);
+        setLocalStream(stream);
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      });
+      
+      clientRef.current.on('blur-ready', (stream: MediaStream) => {
+        console.log('[Patient Gate] blur-ready received');
         setLocalStream(stream);
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
       });
 
-      // 3. Kick off the asynchronous camera initialization inside a safe try/catch
-      
-      // try {
-      //   clientRef.current.enableBackgroundBlur({
-      //     blurRadius: 20,
-      //     fps: 24,
-      //     modelSelection: 1,
-      //   });
-      // } catch (blurError) {
-      //   console.error('[Patient Gate] Synchronous error inside enableBackgroundBlur:', blurError);
-      // }
-
+      // // Enable blur
+      if (getBlurPreference()) {
+        clientRef.current.enableBackgroundBlur({ blurRadius: 20, fps: 24, modelSelection: 1 });
+      }
 
       clientRef.current.on('remote-stream-ready', (stream: MediaStream) => {
         setRemoteStream(stream);
         if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;
       });
 
-      // 2. 🔥 ARMED HOOK WITH FAIL-SAFE TIMEOUT
-      console.log('[Patient Gate] Setting up media warmup hook...');
-      
-      const waitForStreamWithTimeout = new Promise<void>((resolve) => {
-        let isResolved = false;
 
-        const handleInitialStream = () => {
-          if (isResolved) return;
-          console.log('[Patient Gate] Local stream active. Cleaning up listener...');
-          isResolved = true;
-          clearTimeout(timeoutId); 
-          clientRef.current?.off('local-stream-ready', handleInitialStream);
-          resolve();
-        };
+      // Armed hook — wait for media + blur ready
+      await waitForStreamWithTimeout();
 
-        // Safety net: Bypass the hang if the background engine takes longer than 5 seconds
-        const timeoutId = setTimeout(() => {
-          if (isResolved) return;
-          console.warn('[Patient Gate] ⚠️ Warmup timed out after 5s. Bypassing deadlock to force connection...');
-          isResolved = true;
-          clientRef.current?.off('local-stream-ready', handleInitialStream);
-          resolve(); // Resolves the promise to unblock startCall
-        }, 5000);
+      // Phase 2 — signaling only, no join-room yet
+      await clientRef.current.connectSignaling(data.token, data.signalingUrl);
 
-        clientRef.current?.on('local-stream-ready', handleInitialStream);
+      clientRef.current.off('patient-admitted', () => { });
 
+      // Listen for admit — triggers Phase 4
+      clientRef.current.on('patient-admitted', async () => {
+        console.log('[Patient Gate] Admitted — joining room...');
+        clientRef.current?.joinRoom();
       });
-
       
-      // 4. Await the race
-      await waitForStreamWithTimeout;
-
-      // 5. Fire signaling handshake!
-      console.log('[Patient Gate] Advancing to startCall...');
-      await clientRef.current.startCall(data.token, data.signalingUrl);
+      // 3. Tell the backend a patient is in the lobby
+      clientRef.current.joinLobby();
+      console.log('[Patient Gate] Warmed up. Waiting for admit...');
 
     } catch (err: any) {
       console.error('[Patient SDK Level Error]', err.message);
     }
   };
+
+    useEffect(() => {
+    if (step === 'waiting') {
+      console.log('[Patient Gate] Step is waiting — starting warmup');
+      warmupSession();
+    }
+    }, [step]);
+  
+  // const connectToSession = async () => {
+  //   try {
+  //     const res = await fetch(
+  //       `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/room/${roomId}/guest-token`,
+  //       { method: 'POST' }
+  //     );
+  //     const data = await res.json();
+  //     if (!data.success) throw new Error(data.error);
+
+  //     const { MediaDanceClient } = await import('@mediadance/client-sdk');
+  //     clientRef.current = new MediaDanceClient({ serverUrl: data.signalingUrl });
+
+  //     // 1. Setup the standard UI stream display listeners
+  //     clientRef.current.on('local-stream-ready', (stream: MediaStream) => {
+  //       setLocalStream(stream);
+  //       if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+  //     });
+
+  //     // 3. Kick off the asynchronous camera initialization inside a safe try/catch
+      
+  //     // try {
+  //     //   clientRef.current.enableBackgroundBlur({
+  //     //     blurRadius: 20,
+  //     //     fps: 24,
+  //     //     modelSelection: 1,
+  //     //   });
+  //     // } catch (blurError) {
+  //     //   console.error('[Patient Gate] Synchronous error inside enableBackgroundBlur:', blurError);
+  //     // }
+
+
+  //     clientRef.current.on('remote-stream-ready', (stream: MediaStream) => {
+  //       setRemoteStream(stream);
+  //       if (remoteVideoRef.current) remoteVideoRef.current.srcObject = stream;
+  //     });
+
+  //     // 2. 🔥 ARMED HOOK WITH FAIL-SAFE TIMEOUT
+  //     console.log('[Patient Gate] Setting up media warmup hook...');
+      
+  //     const waitForStreamWithTimeout = new Promise<void>((resolve) => {
+  //       let isResolved = false;
+
+  //       const handleInitialStream = () => {
+  //         if (isResolved) return;
+  //         console.log('[Patient Gate] Local stream active. Cleaning up listener...');
+  //         isResolved = true;
+  //         clearTimeout(timeoutId); 
+  //         clientRef.current?.off('local-stream-ready', handleInitialStream);
+  //         resolve();
+  //       };
+
+  //       // Safety net: Bypass the hang if the background engine takes longer than 5 seconds
+  //       const timeoutId = setTimeout(() => {
+  //         if (isResolved) return;
+  //         console.warn('[Patient Gate] ⚠️ Warmup timed out after 5s. Bypassing deadlock to force connection...');
+  //         isResolved = true;
+  //         clientRef.current?.off('local-stream-ready', handleInitialStream);
+  //         resolve(); // Resolves the promise to unblock startCall
+  //       }, 5000);
+
+  //       clientRef.current?.on('local-stream-ready', handleInitialStream);
+
+  //     });
+
+      
+  //     // 4. Await the race
+  //     // await waitForStreamWithTimeout;
+
+  //     // 5. Fire signaling handshake!
+  //     console.log('[Patient Gate] Advancing to startCall...');
+  //     await clientRef.current.startCall(data.token, data.signalingUrl);
+
+  //   } catch (err: any) {
+  //     console.error('[Patient SDK Level Error]', err.message);
+  //   }
+  // };
   
   const fetchAppointment = async () => {
     try {
@@ -210,6 +337,8 @@ export default function PatientGatePage() {
       setError(err.message);
     }
   };
+
+
   const initCopayStep = async () => {
     const res  = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/payment-intent`, {
       method:  'POST',
@@ -226,29 +355,25 @@ export default function PatientGatePage() {
   }, [roomId]);
 
   // Poll for session start
-  useEffect(() => {
-    if (step !== 'waiting') return;
+  // useEffect(() => {
+  //   if (step !== 'waiting') return;
 
     
-    const interval = setInterval(async () => {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/room/${roomId}`
-      );
-      const data = await res.json();
-      
-      console.log('[Patient Poll] full response:', data);
-      console.log('[Patient Poll] appt status:', data.appointment?.status);
-      console.log('[Patient Poll] top status:', data.status);
+  //   const interval = setInterval(async () => {
+  //     const res = await fetch(
+  //       `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/room/${roomId}`
+  //     );
+  //     const data = await res.json();
 
-      if (data.appointment?.status === 'in_session') {
-        clearInterval(interval);
-        setStep('session');
-        connectToSession();
-      }
-    }, 3000);
+  //     if (data.appointment?.status === 'in_session') {
+  //       clearInterval(interval);
+  //       setStep('session');
+  //       connectToSession();
+  //     }
+  //   }, 3000);
 
-    return () => clearInterval(interval);
-  }, [step]);
+  //   return () => clearInterval(interval);
+  // }, [step]);
 
 
   /**
@@ -313,6 +438,7 @@ export default function PatientGatePage() {
             await initCopayStep();
           } else {
             setStep('waiting');
+            // warmupSession();
           }
         }, 1500);
       },
@@ -324,25 +450,25 @@ export default function PatientGatePage() {
   };
 
   const handleCameraCheck = async () => {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true
-    });
-    
-    // 1. Assign the raw stream to your local state
-    setLocalStream(stream);
-
-    // 2. 🔥 EARLY WARMUP: If they enabled blur, spin it up right now
-    if (blurEnabled && clientRef.current) {
-      console.log('[Patient Gate] Pre-flight blur option selected. Warming up MediaPipe pipeline...');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+      });
       
-      // Update the configuration flag on your client instance
-      clientRef.current.enableBackgroundBlur({
-          blurRadius: 20,
-          fps: 24,
-          modelSelection: 1,
-        });
+      // 1. Assign the raw stream to your local state
+      setLocalStream(stream);
+
+      // 2. 🔥 EARLY WARMUP: If they enabled blur, spin it up right now
+      if (blurEnabled && clientRef.current) {
+        console.log('[Patient Gate] Pre-flight blur option selected. Warming up MediaPipe pipeline...');
+        
+        // Update the configuration flag on your client instance
+        clientRef.current.enableBackgroundBlur({
+            blurRadius: 20,
+            fps: 24,
+            modelSelection: 1,
+          });
       
       // // Explicitly kick off the processor loop so it compiles WebGL shaders
       // // while the user is looking at the geo-verification screen.
@@ -580,7 +706,11 @@ export default function PatientGatePage() {
           >
             <CopayForm
               paymentAmount={Number(appointment?.paymentAmount)}
-              onSuccess={() => setStep('waiting')}
+              onSuccess={() => {
+                setStep('waiting');
+                // warmupSession();
+              }
+            }
             />
           </Elements>
         )}
@@ -588,34 +718,34 @@ export default function PatientGatePage() {
   );
 
   // ── Waiting room ─────────────────────────────────────────────────────
-  if (step === 'waiting') return (
-    <Shell providerName={appointment?.provider.name}>
-      <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">waiting room</div>
-      <div className="text-lg font-semibold text-[#1A2E1A] mb-2">
-        You are all set
-      </div>
-      <p className="text-sm text-[#3D5C3D] font-mono mb-6">
-        <span className="text-[#007A40]">{appointment?.provider.name}</span> will be with you shortly.
-        Please keep this window open.
-      </p>
+  // if (step === 'waiting') return (
+  //   <Shell providerName={appointment?.provider.name}>
+  //     <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">waiting room</div>
+  //     <div className="text-lg font-semibold text-[#1A2E1A] mb-2">
+  //       You are all set
+  //     </div>
+  //     <p className="text-sm text-[#3D5C3D] font-mono mb-6">
+  //       <span className="text-[#007A40]">{appointment?.provider.name}</span> will be with you shortly.
+  //       Please keep this window open.
+  //     </p>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-[11px] text-[#007A40] font-mono">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#007A40] animate-pulse" />
-          connected to waiting room
-        </div>
-        <div className="flex items-center gap-2 text-[11px] text-[#7A9A7A] font-mono">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#7A9A7A]" />
-          waiting for provider to start session
-        </div>
-      </div>
-    </Shell>
-  );
+  //     <div className="flex flex-col gap-2">
+  //       <div className="flex items-center gap-2 text-[11px] text-[#007A40] font-mono">
+  //         <span className="w-1.5 h-1.5 rounded-full bg-[#007A40] animate-pulse" />
+  //         connected to waiting room
+  //       </div>
+  //       <div className="flex items-center gap-2 text-[11px] text-[#7A9A7A] font-mono">
+  //         <span className="w-1.5 h-1.5 rounded-full bg-[#7A9A7A]" />
+  //         waiting for provider to start session
+  //       </div>
+  //     </div>
+  //   </Shell>
+  // );
 
-  if (step === 'session') return (
+  if (step === 'waiting' || step === 'session') return (
     <div className="fixed inset-0 bg-[#0C100C] flex flex-col">
       
-       <div className="h-[44px] flex-shrink-0 flex items-center justify-between px-6 border-b border-[rgba(0,255,140,0.12)]">
+      <div className="h-[44px] flex-shrink-0 flex items-center justify-between px-6 border-b border-[rgba(0,255,140,0.12)]">
         <div className="flex items-center gap-3">
           <span className="w-1.5 h-1.5 rounded-full bg-[#00FF8C] animate-pulse" />
           <span className="text-xs tracking-widest text-[#E8F5E8] uppercase">
@@ -624,12 +754,9 @@ export default function PatientGatePage() {
         </div>
       </div>
 
-      
-
-
     {/* Guard the incoming provider track */}
       <WebRTCSafetyBoundary>
-        <RemoteVideo stream={remoteStream} waitingText="connecting to provider..." />
+        <RemoteVideo stream={remoteStream} waitingText="Waiting on provider to start the session." />
       </WebRTCSafetyBoundary>
 
       {/* Guard the local PiP container independently */}
@@ -683,7 +810,7 @@ export default function PatientGatePage() {
             clientRef.current = null;
             setLocalStream(null);
             setRemoteStream(null);
-            setStep('waiting');
+            // setStep('waiting');
           }}
           className="px-6 h-[32px] border border-[#CC2200] text-[10px] tracking-widest uppercase text-[#CC2200] hover:bg-[#CC2200] hover:text-[#F5F0E8] transition-all"
         >

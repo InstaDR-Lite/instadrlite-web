@@ -9,6 +9,7 @@ export interface MediaDanceConfig {
 }
 export interface MediaDanceClientEvents {
     'local-stream-ready': (stream: MediaStream) => void;
+    'blur-ready': (stream: MediaStream) => void;
     'remote-stream-ready': (stream: MediaStream) => void;
     'status-update': (message: string) => void;
     'error': (error: MediaDanceError) => void;
@@ -16,6 +17,7 @@ export interface MediaDanceClientEvents {
         roomId: string;
     }) => void;
     'bitrate-adapted': (tier: string) => void;
+    'patient-admitted': () => void;
 }
 export declare class MediaDanceClient extends EventEmitter {
     private media;
@@ -55,10 +57,17 @@ export declare class MediaDanceClient extends EventEmitter {
      * Disable background blur and release processor resources.
      */
     disableBackgroundBlur(): void;
+    joinLobby(): void;
+    getSocketId(): string | null;
     /**
      * High-velocity entry-point for consumer frameworks (e.g., ZenSpace)
      */
     startCall(token?: string, signalingUrl?: string): Promise<MediaStream>;
+    initMedia(): Promise<MediaStream>;
+    private initBlurAsync;
+    connectSignaling(token?: string, signalingUrl?: string): Promise<void>;
+    joinRoom(): void;
+    admitPatient(): void;
     activateAndPublishMedia(useBlur: boolean): Promise<MediaStream | null>;
     /**
      * Generates and transmits an initial WebRTC offer to a newly joined peer.

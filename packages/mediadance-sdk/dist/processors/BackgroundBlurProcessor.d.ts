@@ -47,6 +47,7 @@ export declare class BackgroundBlurProcessor {
      */
     destroy(): void;
     private loadMediaPipe;
+    private initSegmenter;
     private setupCanvas;
     private startLoop;
     /**

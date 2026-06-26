@@ -18,7 +18,8 @@ interface MediaDanceClientInstance {
   startCall:   (token: string, signalingUrl: string) => Promise<MediaStream | null>;
   disconnect?: () => void;
   enableBackgroundBlur: ({ blurRadius, fps, modelSelection }: BlurOptions) => void;
-  activateAndPublishMedia: (enableBlur: boolean) => Promise<MediaStream> ;
+  activateAndPublishMedia: (enableBlur: boolean) => Promise<MediaStream | null>;
+  admitPatient(): void;
 }
 
 
@@ -55,16 +56,12 @@ const initial: VideoSession = {
 export function useVideoSession() {
   
   const [session, setSession] = useState<VideoSession>(initial);
-  const [status, setStatus] = useState('Disconnected');
-  
-
   const clientRef = useRef<MediaDanceClientInstance | null>(null);
   const localVideoRef  = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const [localStream,  setLocalStream]  = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-
   const update = (patch: Partial<VideoSession>) => setSession(prev => ({ ...prev, ...patch }));
 
   useEffect(() => {
@@ -81,6 +78,12 @@ export function useVideoSession() {
       remoteVideoRef.current.srcObject = remoteStream;
     }
   }, [remoteStream]);
+
+  // 2. Clear click handler
+  const handleAdmitClick = () => {
+    console.log('[Debug] Admitting patient ...');
+    clientRef.current?.admitPatient();
+  };
 
   async function requestToken(roomId: string): Promise<{ token: string; signalingUrl: string }> {
     const res = await fetch(
@@ -118,11 +121,16 @@ export function useVideoSession() {
       clientRef.current = new MediaDanceClient({
         serverUrl: signalingUrl
       });
+      
 
       // enable/diable blur base on system settings
-      // if (getBlurPreference()) {
-      //   clientRef.current.enableBackgroundBlur({ blurRadius: 20, fps: 24, modelSelection: 1 });
-      // }
+      if (getBlurPreference()) {
+        clientRef.current.enableBackgroundBlur({
+          blurRadius: 20,
+          fps: 24,
+          modelSelection: 1
+        });
+      }
 
       // Register events immediately after creation
      clientRef.current?.on('local-stream-ready', (stream: MediaStream) => {
@@ -186,7 +194,7 @@ export function useVideoSession() {
     }
   }
 
-  const toggleVideoNoBlur = async () => {
+  const toggleVideo= async () => {
     // 1. Grab the stream that was already created during startCall
     const rawStream = localStream; 
     if (!rawStream) return;
@@ -200,9 +208,11 @@ export function useVideoSession() {
       // 3. Force React to trigger its layout rendering effect by passing a shallow copy
       setLocalStream(new MediaStream(rawStream.getTracks()));
     }
+     // Force explicit state: Video is no longer off
+      update({ videoOff: false });
   };
   
-  async function toggleVideo() {
+  async function toggleVideoBlur() {
     // 1. Determine action explicitly by what the UI state says
     const isCurrentlyOff = session.videoOff; 
 
@@ -253,6 +263,7 @@ export function useVideoSession() {
     localVideoRef,
     remoteVideoRef,
     startSession,
+    handleAdmitClick,
     endSession,
     toggleMute,
     toggleVideo,

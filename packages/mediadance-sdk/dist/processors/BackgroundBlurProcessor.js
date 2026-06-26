@@ -71,24 +71,38 @@ export class BackgroundBlurProcessor {
     async loadMediaPipe() {
         if (this.segmenter)
             return;
-        // Load via script tag — MediaPipe attaches to window, not ES module export
-        await new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = `${MEDIAPIPE_CDN}/selfie_segmentation.js`;
-            script.onload = () => resolve();
-            script.onerror = () => reject(new Error('Failed to load MediaPipe'));
-            document.head.appendChild(script);
-        });
-        const SelfieSegmentation = window.SelfieSegmentation;
-        if (!SelfieSegmentation) {
-            throw new Error('SelfieSegmentation not found on window after script load');
+        // Already on window from preload — skip script injection
+        console.log('[BlurProcessor] SelfieSegmentation on window?', !!window.SelfieSegmentation);
+        console.log('[BlurProcessor] Script tag in DOM?', !!document.querySelector(`script[src*="selfie_segmentation"]`));
+        if (!window.SelfieSegmentation) {
+            await new Promise((resolve, reject) => {
+                if (document.querySelector(`script[src*="selfie_segmentation"]`)) {
+                    console.log('[BlurProcessor] Script exists, polling for SelfieSegmentation...');
+                    const interval = setInterval(() => {
+                        console.log('[BlurProcessor] Polling... SelfieSegmentation?', !!window.SelfieSegmentation);
+                        if (window.SelfieSegmentation) {
+                            clearInterval(interval);
+                            resolve();
+                        }
+                    }, 100);
+                    return;
+                }
+                const script = document.createElement('script');
+                script.src = `${MEDIAPIPE_CDN}/selfie_segmentation.js`;
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error('Failed to load MediaPipe'));
+                document.head.appendChild(script);
+            });
         }
+        this.initSegmenter();
+    }
+    initSegmenter() {
+        const SelfieSegmentation = window.SelfieSegmentation;
         this.segmenter = new SelfieSegmentation({
             locateFile: (file) => `${MEDIAPIPE_CDN}/${file}`,
         });
         this.segmenter.setOptions({ modelSelection: this.modelSelection });
         this.segmenter.onResults((results) => this.renderFrame(results));
-        await this.segmenter.initialize();
     }
     // ─── CANVAS SETUP ──────────────────────────────────────────────────────────
     setupCanvas(rawStream) {
