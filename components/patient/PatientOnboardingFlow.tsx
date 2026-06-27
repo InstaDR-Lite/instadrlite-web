@@ -123,8 +123,7 @@ export default function PatientOnboardingFlow({ appointment, onComplete, onError
     try {
       // Validate device permissions safely
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      stream.getTracks().forEach(track => track.stop()); // Instantly release it back to the hardware
-      
+      // stream.getTracks().forEach(track => track.stop()); // Instantly release it back to the hardware
       setStep('geo');
       handleGeoVerify();
     } catch {
@@ -216,7 +215,9 @@ export default function PatientOnboardingFlow({ appointment, onComplete, onError
             </label>
             <div className="text-[10px] text-[#7A9A7A] font-mono pl-6.5">Warms up the privacy engine locally to mask your surroundings before you connect.</div>
           </div>
-          <button onClick={handleCameraCheck} className="w-full py-3 border border-[#007A40] text-xs tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8] transition-all mt-2">
+          <button
+            onClick={handleCameraCheck}
+            className="w-full py-3 border border-[#007A40] text-xs tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8] transition-all mt-2">
             [ allow camera + mic → ]
           </button>
         </div>

@@ -1,14 +1,14 @@
 'use client';
 
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import PatientOnboardingFlow from '@/components/patient/PatientOnboardingFlow';
 import { RemoteVideo } from '@/components/session/RemoteVideo';
 import { WebRTCSafetyBoundary } from '@/components/WebRTCSafetyBoundary';
-import { getBlurPreference } from '@/components/settings/VideoTab';
+import { usePatientVideoSession } from '@/hooks/usePatientVideoSession';
 
-type GateState = 'loading' | 'too_early' | 'expired' | 'onboarding' | 'waiting' | 'session';
+type GateState = 'loading' | 'too_early' | 'expired' | 'onboarding' | 'media_connected';
 
 interface AppointmentData {
   id: string;
@@ -56,30 +56,18 @@ export default function PatientGatePage() {
 
   const [step, setStep] = useState<GateState>('loading');
   const [appointment, setAppointment] = useState<AppointmentData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
 
-  // WebRTC Stream States
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-
-  // Core Refs
-  const localVideoRef = useRef<HTMLVideoElement | null>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
-  const clientRef = useRef<any>(null);
-
-  // Sync Local Video DOM element to Stream changes
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream]);
-
-  // Sync Remote Video DOM element to Stream changes
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
-  }, [remoteStream]);
+  // Consume the clean Media Tunnel hook context
+  const {
+    status: sessionStatus,
+    localStream,
+    remoteStream,
+    error: sessionError,
+    localVideoRef,
+    remoteVideoRef,
+    warmupSession
+  } = usePatientVideoSession(roomId);
 
   // Fetch Session Meta Entry
   const fetchAppointment = async () => {
@@ -100,102 +88,44 @@ export default function PatientGatePage() {
       setAppointment(data.appointment);
       setStep('onboarding');
     } catch (err: any) {
-      setError(err.message);
+      setPageError(err.message);
     }
   };
 
+  // useEffect(() => {
+  // if (localStream && localVideoRef.current) {
+  //   localVideoRef.current.srcObject = localStream;
+  //   localVideoRef.current.play()
+  //     .then(() => {
+  //       console.log('[useEffect] playing, videoWidth:', localVideoRef.current?.videoWidth);
+  //       console.log('[useEffect] paused:', localVideoRef.current?.paused);
+  //     })
+  //     .catch(e => console.error('[useEffect] play failed:', e));
+  // }
+  // }, [localStream]); // fires on mount AND when stream changes
+
+  useEffect(() => {
+  if (remoteStream && remoteVideoRef.current) {
+    remoteVideoRef.current.srcObject = remoteStream;
+  }
+  }, [remoteStream, remoteVideoRef]);
+  
   useEffect(() => {
     fetchAppointment();
   }, [roomId]);
 
-  // Fail-Safe Stream Loader Hook
-  const waitForStreamWithTimeout = (): Promise<void> => {
-    return new Promise<void>((resolve) => {
-      let isResolved = false;
-      const handleInitialStream = () => {
-        if (isResolved) return;
-        isResolved = true;
-        clearTimeout(timeoutId);
-        clientRef.current?.off('local-stream-ready', handleInitialStream);
-        resolve();
-      };
-
-      const timeoutId = setTimeout(() => {
-        if (isResolved) return;
-        console.warn('[Patient Gate] ⚠️ Warmup timed out after 5s. Forcing bypass...');
-        isResolved = true;
-        clientRef.current?.off('local-stream-ready', handleInitialStream);
-        resolve();
-      }, 5000);
-
-      clientRef.current?.on('local-stream-ready', handleInitialStream);
-    });
-  };
-
-  // Initialize and spin up MediaDance Signaling Pipeline
-  const warmupSession = async (preFlightBlur: boolean) => {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/room/${roomId}/guest-token`, {
-        method: 'POST'
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
-
-      const { MediaDanceClient } = await import('@mediadance/client-sdk');
-      clientRef.current = new MediaDanceClient({ serverUrl: data.signalingUrl });
-      
-      // Initialize system tracks
-      clientRef.current.initMedia();
-
-      // Track bindings
-      clientRef.current.on('local-stream-ready', (stream: MediaStream) => {
-        setLocalStream(stream);
-      });
-
-      clientRef.current.on('blur-ready', (stream: MediaStream) => {
-        console.log('[Patient Gate] Background blur track compiled cleanly.');
-        setLocalStream(stream);
-      });
-
-      clientRef.current.on('remote-stream-ready', (stream: MediaStream) => {
-        setStep('session'); // Shift UI view automatically once feed drops
-        setRemoteStream(stream);
-      });
-
-      // Handle Blur Warmup execution on initialization
-      if (preFlightBlur || getBlurPreference()) {
-        clientRef.current.enableBackgroundBlur({ blurRadius: 20, fps: 24, modelSelection: 1 });
-      }
-
-      // Standby for media pipeline compilation stability
-      await waitForStreamWithTimeout();
-
-      // Secure Signaling Exchange handshake
-      await clientRef.current.connectSignaling(data.token, data.signalingUrl);
-
-      // Listen for clinician admit entry point
-      clientRef.current.on('patient-admitted', async () => {
-        clientRef.current?.joinRoom();
-      });
-
-      // Declare room presence context status to lobby
-      clientRef.current.joinLobby();
-    } catch (err: any) {
-      console.error('[Patient SDK Level Error]', err.message);
-      setError('Failed to establish media tunnel pipeline connection.');
-    }
-  };
-
   const handleOnboardingComplete = (blurSelection: boolean) => {
-    setStep('waiting');
+    setStep('media_connected');
     warmupSession(blurSelection);
   };
 
-  // State Routing Engine
-  if (error) {
+  // Compile active error contexts cleanly
+  const activeError = pageError || sessionError;
+
+  if (activeError) {
     return (
       <Shell providerName={appointment?.provider.name}>
-        <div className="text-[11px] text-[#CC2200] font-mono">// error: {error}</div>
+        <div className="text-[11px] text-[#CC2200] font-mono">// error: {activeError}</div>
       </Shell>
     );
   }
@@ -235,10 +165,12 @@ export default function PatientGatePage() {
       <PatientOnboardingFlow
         appointment={appointment}
         onComplete={handleOnboardingComplete}
-        onError={(msg) => setError(msg)}
+        onError={(msg) => setPageError(msg)}
       />
     );
   }
+
+  
 
   // Persistent Media Layout Stack (Prevents DOM unmount/re-mount deadlocks)
   return (
@@ -246,28 +178,39 @@ export default function PatientGatePage() {
       
       <div className="h-[44px] flex-shrink-0 flex items-center justify-between px-6 border-b border-[rgba(0,255,140,0.12)]">
         <div className="flex items-center gap-3">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#00FF8C] animate-pulse" />
-          <span className="text-xs tracking-widest text-[#E8F5E8] uppercase">
-            {appointment?.provider.name}
-          </span>
+          <span className={`w-1.5 h-1.5 rounded-full ${sessionStatus === 'active' ? 'bg-[#00FF8C]' : 'bg-[#7A9A7A]'} animate-pulse`} />
+          <span className="text-xs tracking-widest text-[#E8F5E8] uppercase">{appointment?.provider.name}</span>
         </div>
+        {sessionStatus !== 'active' && (
+          <span className="text-[10px] font-mono tracking-widest text-[#7A9A7A] uppercase">
+            // {sessionStatus === 'warmup' ? 'Initializing hardware processing shaders...' : 'Sitting in secure lobby...'}
+          </span>
+        )}
       </div>
 
     {/* Guard the incoming provider track */}
       <WebRTCSafetyBoundary>
-        <RemoteVideo stream={remoteStream} waitingText="Waiting on provider to start the session." />
+        <RemoteVideo
+          stream={remoteStream}
+          status={sessionStatus}
+          waitingText="Waiting on provider to start the session."
+        />
       </WebRTCSafetyBoundary>
 
       {/* Guard the local PiP container independently */}
       {/* Local Feed Pipeline Display Picture-in-Picture (Always Mounted) */}
+     {/* Local Feed Pipeline Display Picture-in-Picture (Always Mounted) */}
       <div className="absolute bottom-6 right-6 w-[160px] h-[120px] bg-[#141A14] border border-[rgba(0,255,140,0.15)] shadow-2xl z-50">
         <WebRTCSafetyBoundary>
           <video
+            key={localStream ? `${localStream.id}-${localStream.getVideoTracks()[0]?.id}` : 'empty'}
             ref={localVideoRef}
             id="localVideo"
             autoPlay
             playsInline
             muted
+            // 🚀 Force Chrome to keep a live hardware layer composited on Attempt 0
+            style={{ display: 'block', visibility: localStream ? 'visible' : 'hidden' }}
             className="w-full h-full object-cover scale-x-[-1]"
           />
         </WebRTCSafetyBoundary>
@@ -297,11 +240,9 @@ export default function PatientGatePage() {
         <button
           onClick={async () => {
             try {
-              await clientRef.current?.disconnect?.();
+              // await clientRef.current?.disconnect?.();
             } catch (_) {}
-            clientRef.current = null;
-            setLocalStream(null);
-            setRemoteStream(null);
+            
             // setStep('waiting');
           }}
           className="px-6 h-[32px] border border-[#CC2200] text-[10px] tracking-widest uppercase text-[#CC2200] hover:bg-[#CC2200] hover:text-[#F5F0E8] transition-all"
