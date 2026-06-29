@@ -123,7 +123,7 @@ export default function PatientOnboardingFlow({ appointment, onComplete, onError
     try {
       // Validate device permissions safely
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      // stream.getTracks().forEach(track => track.stop()); // Instantly release it back to the hardware
+      stream.getTracks().forEach(track => track.stop()); // Instantly release it back to the hardware
       setStep('geo');
       handleGeoVerify();
     } catch {
