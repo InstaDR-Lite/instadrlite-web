@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { getBlurPreference } from '@/components/settings/VideoTab';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { BlurOptions } from '@/packages/mediadance-sdk/dist/processors/BackgroundBlurProcessor';
 
 export type PatientSessionStatus = 'idle' | 'warmup' | 'waiting' | 'active' | 'error';
 
@@ -12,8 +12,23 @@ export function usePatientVideoSession(roomId: string) {
   const [error, setError] = useState<string | null>(null);
 
   const clientRef = useRef<any>(null);
+  const [client, setClient] = useState<any>(null);
+
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  const enableBlur = useCallback(async (options: BlurOptions = {}) => {
+    if (!client) {
+      console.warn('[Patient Hook] Attempted to enable blur, but the client is not initialized.');
+      return null;
+    }
+    return await client.enableBackgroundBlur(options);
+  }, [client]);
+
+  const disableBlur = useCallback(async () => {
+    if (!client) return null;
+    return await client.disableBackgroundBlur();
+  }, [client]);
   
   // Create a persistent reference to hold the SDK class once loaded
   const MediaDanceClientClassRef = useRef<any>(null);
@@ -32,12 +47,17 @@ export function usePatientVideoSession(roomId: string) {
     preloadSDK();
   }, []);
 
+  
   useEffect(() => {
     const videoEl = localVideoRef.current;
     if (!videoEl || !localStream) return;
 
     const videoTrack = localStream.getVideoTracks()[0];
-    if (!videoTrack) return;
+    console.log('[Patient Hook] Attempting to bind local stream to video element:', videoTrack);
+    if (!videoTrack) {
+      console.error('[Patient Hook] No valid video track found.');
+      return;
+    }
 
     // 🚀 The Definitive Initialization Guard for Attempt 0
     const bindAndPlayStream = () => {
@@ -74,6 +94,7 @@ export function usePatientVideoSession(roomId: string) {
     }
   }, [localStream]);
 
+  
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
@@ -103,7 +124,22 @@ export function usePatientVideoSession(roomId: string) {
     });
   };
 
-  const warmupSession = async (preFlightBlur: boolean) => {
+  async function endSession() {
+   
+    try {
+      await clientRef.current?.disconnect?.();
+    } catch (_) {}
+    setLocalStream(null);
+    setRemoteStream(null);
+    clientRef.current = null;
+    // setTimeout(() => setSession(initial), 500);
+  }
+
+  /**
+   * Warms up the video session with optional pre-flight blur
+   * @param preFlightBlur 
+   */
+  const warmupSession = async () => {
     try {
       setStatus('warmup');
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/room/${roomId}/guest-token`, {
@@ -120,9 +156,10 @@ export function usePatientVideoSession(roomId: string) {
 
       const ClientClass = MediaDanceClientClassRef.current;
       clientRef.current = new ClientClass({ serverUrl: data.signalingUrl });
-      
-      // Initialize system tracks
+
       clientRef.current.initMedia();
+      setClient(clientRef.current);
+        
       // Inside your video session hook where events are registered
 
       // 1. Raw Stream Event Listener
@@ -133,40 +170,27 @@ export function usePatientVideoSession(roomId: string) {
         }
       });
 
-      // 2. Blur Stream Event Listener (Handles Attempt 0 cleanly)
-      clientRef.current.on('blur-ready', (blurredStream: MediaStream) => {
+      clientRef.current.on('blur-ready', (blurredStream: MediaStream | null) => {
+        if (!blurredStream) {
+          console.warn('[Patient Hook] Received null stream from blur-ready event. Pipeline may still be warm-starting.');
+          return;
+        }
+
         console.log('[Patient Hook] 🧠 MediaPipe Shader compiled on Attempt 0. Forcing track structural re-bind...');
         
-        // Update state with a completely new stream instance to break React caching
-        const freshStreamInstance = new MediaStream(blurredStream.getTracks());
-        setLocalStream(freshStreamInstance);
-
-        // 🔥 THE UI ATTEMPT 0 FIX: Directly update the raw DOM element's srcObject
-        const videoElement = localVideoRef.current;
-        if (videoElement) {
-          videoElement.srcObject = freshStreamInstance;
-          
-          // Re-trigger playback. This instructs the browser layout engine 
-          // to dynamically repaint the bound PiP context window seamlessly.
-          videoElement.play()
-            .then(() => {
-              console.log('[Patient Hook] Re-bind verified. Video streaming updated.');
-            })
-            .catch((err) => {
-              console.warn('[Patient Hook] Video playback re-trigger failed:', err);
-            });
+        // Directly bind the new stream to the local video ref if it exists
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = blurredStream;
         }
+        
+        // Keep your state clean without creating a brand new container instance
+        setLocalStream(blurredStream);
       });
 
       clientRef.current.on('remote-stream-ready', (stream: MediaStream) => {
         setStatus('active');
         setRemoteStream(stream);
       });
-
-      // Handle Background Blur toggle immediately on initialization
-      if (preFlightBlur || getBlurPreference()) {
-        clientRef.current.enableBackgroundBlur({ blurRadius: 20, fps: 24, modelSelection: 1 });
-      }
 
       await clientRef.current.connectSignaling(data.token, data.signalingUrl);
       
@@ -186,13 +210,18 @@ export function usePatientVideoSession(roomId: string) {
     }
   };
 
+  
+
   return {
+    enableBlur,
+    disableBlur,
     status,
     localStream,
     remoteStream,
     error,
     localVideoRef,
     remoteVideoRef,
-    warmupSession
+    warmupSession,
+    endSession,
   };
 }

@@ -1,22 +1,22 @@
 import { EventEmitter } from '../utils/EventEmitter.js';
 export class WebRTCManager extends EventEmitter {
     iceServers;
-    pc = null;
+    peerConnection = null;
     constructor(iceServers) {
         super();
         this.iceServers = iceServers;
     }
     initiateConnection(targetSocketId, localStream) {
-        if (this.pc) {
-            this.pc.close();
-            this.pc = null;
+        if (this.peerConnection) {
+            this.peerConnection.close();
+            this.peerConnection = null;
         }
-        this.pc = new RTCPeerConnection({ iceServers: this.iceServers });
+        this.peerConnection = new RTCPeerConnection({ iceServers: this.iceServers });
         // Inside your PeerConnection initialization (e.g., right before connecting signaling)
         // this.pc.addTransceiver('audio', { direction: 'sendrecv' });
         // this.pc.addTransceiver('video', { direction: 'sendrecv' });
         if (localStream) {
-            localStream.getTracks().forEach((track) => this.pc.addTrack(track, localStream));
+            localStream.getTracks().forEach((track) => this.peerConnection.addTrack(track, localStream));
         }
         // 🔥 1. LISTEN FOR LATE TRACK INJECTIONS (STATE-SAFE)
         // this.pc.onnegotiationneeded = async () => {
@@ -41,27 +41,27 @@ export class WebRTCManager extends EventEmitter {
         //     console.error('[WebRTCManager] Mid-session negotiation failed:', err);
         //   }
         // };
-        this.pc.onicecandidate = (event) => {
+        this.peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
                 this.emit('ice-candidate-generated', { target: targetSocketId, candidate: event.candidate });
             }
         };
-        this.pc.onconnectionstatechange = () => {
-            console.log('[WebRTCManager] 📡 Connection state changed to:', this.pc?.connectionState);
-            if (this.pc?.connectionState === 'connected') {
+        this.peerConnection.onconnectionstatechange = () => {
+            console.log('[WebRTCManager] 📡 Connection state changed to:', this.peerConnection?.connectionState);
+            if (this.peerConnection?.connectionState === 'connected') {
                 // Expose this up to your main client wrapper
                 this.emit('connection-established');
             }
         };
-        this.pc.ontrack = (event) => {
+        this.peerConnection.ontrack = (event) => {
             if (event.streams && event.streams[0]) {
                 this.emit('remote-stream-ready', event.streams[0]);
             }
         };
-        return this.pc;
+        return this.peerConnection;
     }
     getPeerConnection() {
-        return this.pc;
+        return this.peerConnection;
     }
     // telehealth-sdk/src/managers/WebRTCManager.ts
     /**
@@ -69,15 +69,15 @@ export class WebRTCManager extends EventEmitter {
      */
     async handleRemoteDescription(targetSocketId, sdp, localStream) {
         // If a connection doesn't exist yet for this peer, initialize it as the receiver (isInitiator = false)
-        if (!this.pc) {
+        if (!this.peerConnection) {
             this.initiateConnection(targetSocketId, localStream);
         }
         // 1. Set the remote party's details as our current network target
-        await this.pc.setRemoteDescription(new RTCSessionDescription(sdp));
+        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
         // 2. If it's an offer, we must automatically generate an answer to send back
         if (sdp.type === 'offer') {
-            const answer = await this.pc.createAnswer();
-            await this.pc.setLocalDescription(answer);
+            const answer = await this.peerConnection.createAnswer();
+            await this.peerConnection.setLocalDescription(answer);
             return answer; // Return the answer so the orchestrator can emit it via socket
         }
         return null;
@@ -86,21 +86,64 @@ export class WebRTCManager extends EventEmitter {
      * Appends an incoming network routing candidate to the live pipeline
      */
     async handleRemoteIceCandidate(candidate) {
-        if (this.pc) {
-            await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
+        if (this.peerConnection) {
+            await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
             console.log('Successfully appended remote ICE candidate.');
         }
     }
+    /**
+     * Checks if an active peer connection is currently established
+     */
+    isActive() {
+        return this.peerConnection !== null && this.peerConnection.connectionState === 'connected';
+    }
+    /**
+     * Hot-swaps the active media tracks on the live connection without renegotiating
+     */
+    async updateLocalTracks(newStream) {
+        if (!this.peerConnection)
+            return;
+        const videoTrack = newStream.getVideoTracks()[0];
+        const audioTrack = newStream.getAudioTracks()[0];
+        const senders = this.peerConnection.getSenders();
+        // 1. Locate the video sender and swap the track seamlessly via hardware layer
+        if (videoTrack) {
+            const videoSender = senders.find(s => s.track?.kind === 'video');
+            if (videoSender) {
+                // replaceTrack handles the pipeline handoff without dropping the connection
+                await videoSender.replaceTrack(videoTrack);
+            }
+        }
+        // 2. Locate the audio sender and swap (if needed, e.g., if devices changed)
+        if (audioTrack) {
+            const audioSender = senders.find(s => s.track?.kind === 'audio');
+            if (audioSender) {
+                await audioSender.replaceTrack(audioTrack);
+            }
+        }
+    }
+    /**
+     * Gracefully handles camera muting by dropping tracks on the connection
+     */
+    async handleVideoMute() {
+        if (!this.peerConnection)
+            return;
+        const senders = this.peerConnection.getSenders();
+        const videoSender = senders.find(s => s.track?.kind === 'video');
+        if (videoSender) {
+            await videoSender.replaceTrack(null);
+        }
+    }
     closeConnection() {
-        if (this.pc) {
-            this.pc.getSenders().forEach(sender => {
+        if (this.peerConnection) {
+            this.peerConnection.getSenders().forEach(sender => {
                 try {
-                    this.pc.removeTrack(sender);
+                    this.peerConnection.removeTrack(sender);
                 }
                 catch (_) { }
             });
-            this.pc.close();
-            this.pc = null;
+            this.peerConnection.close();
+            this.peerConnection = null;
         }
     }
 }

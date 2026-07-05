@@ -4,9 +4,7 @@ import { MediaManager } from './managers/MediaManager.js';
 import { SignalingManager } from './managers/SignalingManager.js';
 import { WebRTCManager } from './managers/WebRTCManager.js';
 import { BitrateAdapter } from './modules/BitrateAdapter.js'; // 💡 Dropping in our adaptive engine
-import { MediaDanceError } from './types/errors.js';
 export { MediaDanceError } from './types/errors.js';
-import { BackgroundBlurProcessor } from './processors/BackgroundBlurProcessor.js';
 // Put this function right above your class definitio
 function suppressNativeWebRTCExceptions() {
     if (typeof window === 'undefined')
@@ -37,6 +35,7 @@ export class MediaDanceClient extends EventEmitter {
     signaling;
     rtc;
     config;
+    // private blurProcessor: BackgroundBlurProcessor | null = null;
     bitrateAdapter = null; // 💡 Background adaptive tracking reference
     isCallEstablished = false;
     /**
@@ -51,9 +50,8 @@ export class MediaDanceClient extends EventEmitter {
      */
     isPolite = false;
     iceCandidateQueue = [];
-    blurProcessor = null;
     blurEnabled = false;
-    blurOptions = {};
+    // private blurOptions: BlurOptions = {};
     constructor(config) {
         // 🔥 Secure the environment immediately upon initialization
         if (typeof window !== 'undefined') {
@@ -205,27 +203,58 @@ export class MediaDanceClient extends EventEmitter {
         });
     }
     // ─── PUBLIC API ─────────────────────────────────────────────────────────────
-    /**
-     * Enable background blur. Call before startCall().
-     * If called mid-call, takes effect on next startCall().
-     *
-     * @param options - BlurOptions (blurRadius, fps, modelSelection)
-     */
-    enableBackgroundBlur(options = {}) {
-        this.blurEnabled = true;
-        this.blurOptions = options;
-        this.emit('status-update', 'Background blur enabled.');
+    async toggleCamera(requestedOn) {
+        if (!requestedOn) {
+            this.media.stopLocalStream();
+            // Notify WebRTC layer to remove/mute video track
+            // this.rtc.handleVideoMute(); 
+            return null;
+        }
+        const activeStream = await this.media.captureLocalStream();
+        // Hand the active stream tracks down to WebRTC manager if connection is live
+        // this.rtc.updateLocalTracks(activeStream);
+        return activeStream;
+    }
+    async setBlur(enabled) {
+        // 1. Delegate the pipeline swap down to the media domain expert
+        const updatedStream = await this.media.setBlur(enabled);
+        // 2. Push the newly processed/bypass tracks to the RTC connection mid-flight
+        // this.rtc.updateLocalTracks(updatedStream);
+        return updatedStream;
     }
     /**
-     * Disable background blur and release processor resources.
+     * Enable background blur dynamically.
+     * Can be called before or during an active session.
      */
-    disableBackgroundBlur() {
-        this.blurEnabled = false;
-        if (this.blurProcessor) {
-            this.blurProcessor.destroy();
-            this.blurProcessor = null;
+    async enableBackgroundBlur(options = {
+        blurRadius: 20,
+        fps: 24,
+        modelSelection: 1
+    }) {
+        console.log('[MediaDanceClient] Enabling background blur with options:', options);
+        this.blurEnabled = true;
+        // this.blurOptions = options;
+        const updatedStream = await this.media.setBlur(true, options);
+        this.emit('blur-ready', updatedStream);
+        // If stream exists (mid-call), hot-swap tracks. If null, it means we are pre-flight.
+        if (updatedStream && this.rtc.isActive()) {
+            this.rtc.updateLocalTracks(updatedStream);
+        }
+        this.emit('status-update', 'Background blur enabled (configured for initialization).');
+        return updatedStream;
+    }
+    /**
+     * Disable background blur and instantly restore the raw bypass track.
+     */
+    async disableBackgroundBlur() {
+        // 1. Tell media manager to kill the processor loop and drop back to raw hardware
+        const bypassStream = await this.media.setBlur(false);
+        // 2. Hot-swap the tracks live if the call is active
+        if (this.rtc.isActive() && bypassStream) {
+            this.rtc.updateLocalTracks(bypassStream);
         }
         this.emit('status-update', 'Background blur disabled.');
+        return bypassStream;
     }
     // Inside class MediaDanceClient
     joinLobby() {
@@ -241,78 +270,62 @@ export class MediaDanceClient extends EventEmitter {
     /**
      * High-velocity entry-point for consumer frameworks (e.g., ZenSpace)
      */
-    async startCall(token, signalingUrl) {
-        if (typeof window === 'undefined') {
-            throw new Error('startCall can only be executed in browser contexts.');
-        }
-        // Clean up any previous blur processor
-        if (this.blurProcessor) {
-            this.blurProcessor.destroy();
-            this.blurProcessor = null;
-        }
-        const targetUrl = signalingUrl || this.config.serverUrl;
-        const effectiveToken = token || `mock_dev_token_${Date.now()}`;
-        try {
-            let localStream = await this.media.captureLocalStream();
-            if (this.blurEnabled) {
-                this.emit('status-update', 'Initializing background blur...');
-                try {
-                    this.blurProcessor = new BackgroundBlurProcessor(this.blurOptions);
-                    // Kick off the processor. Ensure .process() returns a stream instantly,
-                    // or decouple the loop inside the processor itself.
-                    const processedStream = await this.blurProcessor.process(localStream);
-                    if (processedStream) {
-                        localStream = processedStream;
-                        this.media.setStream(localStream);
-                    }
-                    this.emit('status-update', 'Background blur active.');
-                }
-                catch (err) {
-                    console.error('[MediaDance] Blur init failed, falling back to raw stream:', err);
-                    this.emit('status-update', 'Background blur unavailable — using raw stream.');
-                }
-            }
-            // 🚀 THIS IS NOW GUARANTEED TO RUN INSTEAD OF GETTING STUCK
-            this.emit('local-stream-ready', localStream);
-            this.emit('status-update', 'Hardware audio/video tracks acquired.');
-            this.emit('status-update', 'Authenticating with infrastructure...');
-            await this.signaling.connect(effectiveToken, targetUrl);
-            // Fire down the pipe!
-            this.signaling.emitEvent('join-room', {});
-            this.emit('status-update', 'Room allocation locked. Awaiting peer...');
-            return localStream;
-        }
-        catch (error) {
-            const platformError = new MediaDanceError(`Hardware/Signaling Initialization Failed`, 'MEDIA_HARDWARE_ACQUISITION_FAILED');
-            this.emit('error', platformError);
-            throw platformError;
-        }
-    }
+    // public async startCallOrig(token?: string, signalingUrl?: string): Promise<MediaStream> {
+    //   if (typeof window === 'undefined') {
+    //     throw new Error('startCall can only be executed in browser contexts.');
+    //   }
+    //    // Clean up any previous blur processor
+    //   if (this.blurProcessor) {
+    //     this.blurProcessor.destroy();
+    //     this.blurProcessor = null;
+    //   }
+    //   const targetUrl = signalingUrl || this.config.serverUrl;
+    //   const effectiveToken = token || `mock_dev_token_${Date.now()}`;
+    //   try {
+    //     let localStream = await this.media.captureLocalStream();
+    //     // 🚀 THIS IS NOW GUARANTEED TO RUN INSTEAD OF GETTING STUCK
+    //     this.emit('local-stream-ready', localStream);
+    //     this.emit('status-update', 'Hardware audio/video tracks acquired.');
+    //     if (this.blurEnabled) {
+    //       this.emit('status-update', 'Initializing background blur...');
+    //       try {
+    //         this.blurProcessor = new BackgroundBlurProcessor(this.blurOptions);
+    //         // Kick off the processor. Ensure .process() returns a stream instantly,
+    //         // or decouple the loop inside the processor itself.
+    //         const processedStream = await this.blurProcessor.process(localStream);
+    //         if (processedStream) {
+    //           localStream = processedStream;
+    //           this.media.setStream(localStream);
+    //         }
+    //         this.emit('blur-ready', processedStream);
+    //         this.emit('status-update', 'Background blur active.');
+    //       } catch (err) {
+    //         console.error('[MediaDance] Blur init failed, falling back to raw stream:', err);
+    //         this.emit('status-update', 'Background blur unavailable — using raw stream.');
+    //       }
+    //     }
+    //     this.emit('status-update', 'Authenticating with infrastructure...');
+    //     await this.signaling.connect(effectiveToken, targetUrl);
+    //     // Fire down the pipe!
+    //     this.signaling.emitEvent('join-room', {});
+    //     this.emit('status-update', 'Room allocation locked. Awaiting peer...');
+    //     return localStream;
+    //   } catch (error: unknown) {
+    //     const platformError = new MediaDanceError(
+    //       `Hardware/Signaling Initialization Failed`,
+    //       'MEDIA_HARDWARE_ACQUISITION_FAILED'
+    //     );
+    //     this.emit('error', platformError);
+    //     throw platformError;
+    //   }
+    // }
     // Phase 1 — media only
     async initMedia() {
+        // 1. Grab raw camera immediately so user sees their face in < 200ms
         const rawStream = await this.media.captureLocalStream();
-        // Emit raw stream immediately — video appears right away
         this.emit('local-stream-ready', rawStream);
         this.emit('status-update', 'Hardware audio/video tracks acquired.');
-        // Blur warms up in background — non-blocking
-        if (this.blurEnabled) {
-            this.initBlurAsync(rawStream);
-        }
-        return rawStream;
-    }
-    async initBlurAsync(rawStream) {
-        try {
-            this.blurProcessor = new BackgroundBlurProcessor(this.blurOptions);
-            const processedStream = await this.blurProcessor.process(rawStream);
-            this.media.setStream(processedStream);
-            // Update local preview with blurred stream
-            // this.emit('local-stream-ready', processedStream);
-            this.emit('blur-ready', processedStream);
-            this.emit('status-update', 'Background blur active.');
-        }
-        catch (err) {
-            console.error('[MediaDance] Blur failed silently:', err);
-        }
+        return rawStream; // or this.media.getStream()!
     }
     // Phase 2 — signaling only, no join-room
     async connectSignaling(token, signalingUrl) {
@@ -333,15 +346,15 @@ export class MediaDanceClient extends EventEmitter {
     }
     // Keep startCall for backward compatibility — provider still uses it
     // but internally split into phases
-    // public async startCall(token?: string, signalingUrl?: string): Promise<MediaStream> {
-    //   if (typeof window === 'undefined') {
-    //     throw new Error('startCall can only be executed in browser contexts.');
-    //   }
-    //   const stream = await this.initMedia();
-    //   await this.connectSignaling(token, signalingUrl);
-    //   this.joinRoom();
-    //   return stream;
-    // }
+    async startCall(token, signalingUrl) {
+        if (typeof window === 'undefined') {
+            throw new Error('startCall can only be executed in browser contexts.');
+        }
+        await this.connectSignaling(token, signalingUrl);
+        const stream = await this.initMedia();
+        this.joinRoom();
+        return stream;
+    }
     // public async startCall(token?: string, signalingUrl?: string): Promise<MediaStream | null> {
     //   if (typeof window === 'undefined') {
     //     throw new Error('startCall can only be executed in browser contexts.');
@@ -431,42 +444,39 @@ export class MediaDanceClient extends EventEmitter {
     //   return localStream;
     // }
     async activateAndPublishMedia(useBlur) {
-        let localStream = this.media.getStream(); // Grab the existing raw stream
-        if (useBlur && localStream) {
-            this.emit('status-update', 'Initializing background blur processing pipeline...');
-            try {
-                this.blurProcessor = new BackgroundBlurProcessor(this.blurOptions);
-                const processedStream = await this.blurProcessor.process(localStream);
-                if (processedStream) {
-                    localStream = processedStream;
-                    this.media.setStream(localStream);
-                }
-                this.emit('status-update', 'Background blur active.');
-            }
-            catch (err) {
-                console.error('[MediaDance] Blur initialization failed:', err);
-            }
-        }
-        else {
-            console.log('[MediaDanceClient]: localstram is null or not found');
-        }
-        // 🔥 WARM UPDATE: Seamlessly replace track rather than adding a new one
-        let peerConnection = this.rtc.getPeerConnection();
-        if (peerConnection) {
-            const senders = peerConnection.getSenders();
-            localStream?.getTracks().forEach(track => {
-                const existingSender = senders.find(s => s.track?.kind === track.kind);
-                if (existingSender) {
-                    // Swap the hardware/processed track into the pre-allocated SDP line
-                    existingSender.replaceTrack(track);
-                    console.log(`[MediaDance] Upgraded pre-allocated ${track.kind} channel slot.`);
-                }
-                else {
-                    peerConnection.addTrack(track, localStream);
-                }
-            });
-        }
-        return localStream;
+        // let localStream = this.media.getStream(); // Grab the existing raw stream
+        // if (useBlur && localStream) {
+        //   this.emit('status-update', 'Initializing background blur processing pipeline...');
+        //   try {
+        //     this.blurProcessor = new BackgroundBlurProcessor(this.blurOptions);
+        //     const processedStream = await this.blurProcessor.process(localStream);
+        //     if (processedStream) {
+        //       localStream = processedStream;
+        //       this.media.setStream(localStream);
+        //     }
+        //     this.emit('status-update', 'Background blur active.');
+        //   } catch (err) {
+        //     console.error('[MediaDance] Blur initialization failed:', err);
+        //   }
+        // } else {
+        //   console.log('[MediaDanceClient]: localstram is null or not found');
+        // }
+        // // 🔥 WARM UPDATE: Seamlessly replace track rather than adding a new one
+        // let peerConnection = this.rtc.getPeerConnection();
+        // if (peerConnection) {
+        //   const senders = peerConnection.getSenders();
+        //   localStream?.getTracks().forEach(track => {
+        //     const existingSender = senders.find(s => s.track?.kind === track.kind);
+        //     if (existingSender) {
+        //       // Swap the hardware/processed track into the pre-allocated SDP line
+        //       existingSender.replaceTrack(track);
+        //       console.log(`[MediaDance] Upgraded pre-allocated ${track.kind} channel slot.`);
+        //     } else {
+        //       peerConnection.addTrack(track, localStream);
+        //     }
+        //   });
+        // }
+        // return localStream;
     }
     /**
      * Generates and transmits an initial WebRTC offer to a newly joined peer.
@@ -491,6 +501,33 @@ export class MediaDanceClient extends EventEmitter {
             this.emit('error', error);
         }
     }
+    // public async toggleBlur(enabled: boolean): Promise<void> {
+    //   const currentRawStream = await this.media.captureLocalStream(); // Keep track of the original raw hardware stream
+    //   if (enabled) {
+    //     this.emit('status-update', 'Applying background blur...');
+    //     try {
+    //       // 1. Initialize the processor if it doesn't exist yet
+    //       if (!this.blurProcessor) {
+    //         this.blurProcessor = new BackgroundBlurProcessor(this.blurOptions);
+    //       }
+    //       // 2. Process the raw stream to get the canvas stream
+    //       const processedStream = await this.blurProcessor.process(currentRawStream);
+    //       // 3. Emit the blurred stream so the UI can swap its srcObject
+    //       this.emit('local-stream-ready', processedStream);
+    //       this.emit('status-update', 'Background blur active.');
+    //     } catch (err) {
+    //       console.error('[MediaDance] Failed to apply blur on demand:', err);
+    //       this.emit('status-update', 'Failed to apply blur. Reverting to raw video.');
+    //     }
+    //   } else {
+    //     // 4. Turning it off: Just re-emit the original raw hardware stream
+    //     if (this.blurProcessor) {
+    //       // this.blurProcessor.stop(); // Clean up animation frame loops/workers if applicable
+    //     }
+    //     this.emit('local-stream-ready', currentRawStream);
+    //     this.emit('status-update', 'Background blur disabled.');
+    //   }
+    // }
     /**
      * Private tracking bootsmith. Ensures stats are captured cleanly.
      */
@@ -524,10 +561,9 @@ export class MediaDanceClient extends EventEmitter {
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
         }
-        this.blurProcessor?.destroy();
-        this.blurProcessor = null;
         if (this.signaling)
             this.signaling.disconnect();
+        this.media.stopLocalStream();
         this.emit('status-update', 'Session gracefully terminated.');
     }
 }

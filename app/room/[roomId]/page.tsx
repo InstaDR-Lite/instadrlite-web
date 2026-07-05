@@ -1,12 +1,13 @@
 'use client';
 
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import PatientOnboardingFlow from '@/components/patient/PatientOnboardingFlow';
 import { RemoteVideo } from '@/components/session/RemoteVideo';
 import { WebRTCSafetyBoundary } from '@/components/WebRTCSafetyBoundary';
 import { usePatientVideoSession } from '@/hooks/usePatientVideoSession';
+// import { BlurTestComponent } from './BlurTestComponent';
 
 type GateState = 'loading' | 'too_early' | 'expired' | 'onboarding' | 'media_connected';
 
@@ -33,6 +34,11 @@ interface ShellProps {
   providerName?: string;
 }
 
+// interface BlurControlsProps {
+//   onEnableBlur: (options: any) => Promise<any>;
+//   onDisableBlur: () => Promise<any>;
+// }
+
 function Shell({ children, providerName }: ShellProps) {
   return (
     <div className="min-h-screen bg-[#edf1f7] flex items-center justify-center p-4">
@@ -57,16 +63,23 @@ export default function PatientGatePage() {
   const [step, setStep] = useState<GateState>('loading');
   const [appointment, setAppointment] = useState<AppointmentData | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [blurEnabled, setBlurEnabled] = useState<boolean>(false);
+
+
+  const isBlurActiveRef = useRef(false);
 
   // Consume the clean Media Tunnel hook context
   const {
+    enableBlur: onEnableBlur,
+    disableBlur: onDisableBlur,
     status: sessionStatus,
     localStream,
     remoteStream,
     error: sessionError,
     localVideoRef,
     remoteVideoRef,
-    warmupSession
+    warmupSession,
+    endSession
   } = usePatientVideoSession(roomId);
 
   // Fetch Session Meta Entry
@@ -92,31 +105,54 @@ export default function PatientGatePage() {
     }
   };
 
-  // useEffect(() => {
-  // if (localStream && localVideoRef.current) {
-  //   localVideoRef.current.srcObject = localStream;
-  //   localVideoRef.current.play()
-  //     .then(() => {
-  //       console.log('[useEffect] playing, videoWidth:', localVideoRef.current?.videoWidth);
-  //       console.log('[useEffect] paused:', localVideoRef.current?.paused);
-  //     })
-  //     .catch(e => console.error('[useEffect] play failed:', e));
-  // }
-  // }, [localStream]); // fires on mount AND when stream changes
-
   useEffect(() => {
   if (remoteStream && remoteVideoRef.current) {
     remoteVideoRef.current.srcObject = remoteStream;
   }
   }, [remoteStream, remoteVideoRef]);
   
+
   useEffect(() => {
-    fetchAppointment();
+    if (step === 'media_connected') {
+      // Both the DOM state and the blur selection are guaranteed to be ready here!
+      warmupSession(); 
+    }
+  }, [step]); // Triggers safely when both conditions align
+
+  // 3. The data fetch hook
+  useEffect(() => {
+    if (roomId) {
+      fetchAppointment();
+    }
   }, [roomId]);
 
-  const handleOnboardingComplete = (blurSelection: boolean) => {
+
+  /**
+   * Toggle the background blur state for the local video track.
+   * This function ensures that the reference to the button is captured before any asynchronous operations,
+   * preventing issues with stale closures.
+   */
+  const handleBlurToggle = async () => {
+    try {
+      const nextBlurState = !isBlurActiveRef.current;
+
+      if (!isBlurActiveRef.current) {
+        await onEnableBlur({ blurRadius: 20, fps: 24, modelSelection: 1 });
+      } else {
+        await onDisableBlur();
+      }
+      
+      isBlurActiveRef.current = nextBlurState;
+    } catch (err) {
+      console.error('[BlurToggle] Failed to switch video track state:', err);
+    }
+  };
+
+  // 4. The onboarding handler
+  const handleOnboardingComplete = async (blurSelection?: boolean) => {
+    // Set both states in the same cycle so they batch cleanly on the next render
+    // setBlurEnabled(blurSelection);
     setStep('media_connected');
-    warmupSession(blurSelection);
   };
 
   // Compile active error contexts cleanly
@@ -170,8 +206,6 @@ export default function PatientGatePage() {
     );
   }
 
-  
-
   // Persistent Media Layout Stack (Prevents DOM unmount/re-mount deadlocks)
   return (
     <div className="fixed inset-0 bg-[#0C100C] flex flex-col">
@@ -183,12 +217,13 @@ export default function PatientGatePage() {
         </div>
         {sessionStatus !== 'active' && (
           <span className="text-[10px] font-mono tracking-widest text-[#7A9A7A] uppercase">
-            // {sessionStatus === 'warmup' ? 'Initializing hardware processing shaders...' : 'Sitting in secure lobby...'}
+            {sessionStatus === 'warmup' ? 'Initializing hardware processing shaders...' : 'Sitting in secure lobby...'}
           </span>
         )}
       </div>
 
-    {/* Guard the incoming provider track */}
+      
+      {/* Guard the incoming provider track */}
       <WebRTCSafetyBoundary>
         <RemoteVideo
           stream={remoteStream}
@@ -197,20 +232,20 @@ export default function PatientGatePage() {
         />
       </WebRTCSafetyBoundary>
 
-      {/* Guard the local PiP container independently */}
+
       {/* Local Feed Pipeline Display Picture-in-Picture (Always Mounted) */}
-     {/* Local Feed Pipeline Display Picture-in-Picture (Always Mounted) */}
-      <div className="absolute bottom-6 right-6 w-[160px] h-[120px] bg-[#141A14] border border-[rgba(0,255,140,0.15)] shadow-2xl z-50">
+      <div className="absolute bottom-6 right-6 w-[240px] h-[135px] bg-[#141A14]  shadow-2xl z-50">
+        {/* Guard the local PiP container independently */}
         <WebRTCSafetyBoundary>
           <video
-            key={localStream ? `${localStream.id}-${localStream.getVideoTracks()[0]?.id}` : 'empty'}
+            // key={localStream ? `${localStream.id}-${localStream.getVideoTracks()[0]?.id}` : 'empty'}
             ref={localVideoRef}
             id="localVideo"
             autoPlay
             playsInline
             muted
             // 🚀 Force Chrome to keep a live hardware layer composited on Attempt 0
-            style={{ display: 'block', visibility: localStream ? 'visible' : 'hidden' }}
+            style={{ display: 'block', visibility: localStream ? 'visible' : 'hidden', border: '1px solid rgba(0, 139, 139)' }}
             className="w-full h-full object-cover scale-x-[-1]"
           />
         </WebRTCSafetyBoundary>
@@ -237,13 +272,36 @@ export default function PatientGatePage() {
         >
           cam
         </button>
-        <button
-          onClick={async () => {
-            try {
-              // await clientRef.current?.disconnect?.();
-            } catch (_) {}
+       <button
+          onClick={async (e) => {
+            // 1. Capture the reference synchronously BEFORE the await
+            const btn = e.currentTarget; 
             
-            // setStep('waiting');
+            try {
+              // 2. Run your toggle operation
+              await handleBlurToggle();
+              
+              // 3. Now the reference is safely preserved in this closure
+              btn.innerText = isBlurActiveRef.current ? 'Blur Off' : 'Blur On';
+            } catch (err) {
+              console.error('[BlurToggle] Click handler execution failed:', err);
+            }
+          }}
+          className="px-6 h-[32px] border border-[#CC2200] text-[10px] tracking-widest uppercase text-[#CC2200] transition-all"
+        >
+          Blur On
+        </button>
+        <button
+          onClick={() => {
+            try {
+              // 1. Trigger the bulletproof SDK teardown we built
+              endSession();
+            
+              // 3. Force the Gate State away from 'media_connected'
+              setStep('onboarding'); // Or 'expired' if you want a hard block on re-entry
+            } catch (err) {
+              console.error('Error cleanly dropping session layout:', err);
+            }
           }}
           className="px-6 h-[32px] border border-[#CC2200] text-[10px] tracking-widest uppercase text-[#CC2200] hover:bg-[#CC2200] hover:text-[#F5F0E8] transition-all"
         >

@@ -38,37 +38,34 @@ export declare class MediaDanceClient extends EventEmitter {
      */
     private isPolite;
     private iceCandidateQueue;
-    private blurProcessor;
     private blurEnabled;
-    private blurOptions;
     constructor(config: MediaDanceConfig);
     /**
      * Links internal module events together and prepares messages to bubble up to the UI
      */
     private orchestrateEvents;
+    toggleCamera(requestedOn: boolean): Promise<MediaStream | null>;
+    setBlur(enabled: boolean): Promise<MediaStream | null>;
     /**
-     * Enable background blur. Call before startCall().
-     * If called mid-call, takes effect on next startCall().
-     *
-     * @param options - BlurOptions (blurRadius, fps, modelSelection)
+     * Enable background blur dynamically.
+     * Can be called before or during an active session.
      */
-    enableBackgroundBlur(options?: BlurOptions): void;
+    enableBackgroundBlur(options?: BlurOptions): Promise<MediaStream | null>;
     /**
-     * Disable background blur and release processor resources.
+     * Disable background blur and instantly restore the raw bypass track.
      */
-    disableBackgroundBlur(): void;
+    disableBackgroundBlur(): Promise<MediaStream | null>;
     joinLobby(): void;
     getSocketId(): string | null;
     /**
      * High-velocity entry-point for consumer frameworks (e.g., ZenSpace)
      */
-    startCall(token?: string, signalingUrl?: string): Promise<MediaStream>;
     initMedia(): Promise<MediaStream>;
-    private initBlurAsync;
     connectSignaling(token?: string, signalingUrl?: string): Promise<void>;
     joinRoom(): void;
     admitPatient(): void;
-    activateAndPublishMedia(useBlur: boolean): Promise<MediaStream | null>;
+    startCall(token?: string, signalingUrl?: string): Promise<MediaStream>;
+    activateAndPublishMedia(useBlur: boolean): Promise<void>;
     /**
      * Generates and transmits an initial WebRTC offer to a newly joined peer.
      */

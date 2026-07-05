@@ -18,7 +18,7 @@ function isBlurSupported(): boolean {
 const BLUR_PREF_KEY = 'instaroom:bgBlur';
 
 export function getBlurPreference(): boolean {
-  if (typeof window === 'undefined') return true;
+  if (typeof window === 'undefined') return false;
   const stored = localStorage.getItem(BLUR_PREF_KEY);
   return stored === null ? true : stored === 'true'; // default on
 }

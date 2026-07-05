@@ -1,17 +1,16 @@
 export declare class MediaManager {
-    private localStream;
-    /**
-     * Captures the local device tracks securely with hardware optimizations and clean cancellation rails
-     */
+    private localRawStream;
+    private localOutputStream;
+    private blurProcessor;
+    private blurEnabled;
+    private blurOptions;
     captureLocalStream(video?: boolean, audio?: boolean): Promise<MediaStream>;
-    /**
-     * Returns the active local media stream reference
-     */
+    setBlur(enabled: boolean, options?: any): Promise<MediaStream | null>;
+    private applyBlurState;
+    private refreshOutputTracks;
+    stopLocalStream(): void;
     getStream(): MediaStream | null;
     setStream(localStream: MediaStream): void;
-    /**
-     * Physically enables or disables tracks on the stream level to mute hardware
-     */
     toggleTrack(type: 'video' | 'audio', enabled: boolean): void;
 }
 //# sourceMappingURL=MediaManager.d.ts.map

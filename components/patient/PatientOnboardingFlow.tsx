@@ -207,14 +207,14 @@ export default function PatientOnboardingFlow({ appointment, onComplete, onError
         <div className="text-lg font-semibold text-[#1A2E1A] mb-2">Camera + privacy controls</div>
         <p className="text-sm text-[#7A9A7A] font-mono mb-6">Configure your hardware permissions and video privacy options before joining the waiting room.</p>
         <div className="flex flex-col gap-4">
-          <div className="border border-dashed border-[#7A9A7A]/30 p-3 bg-[#1A2E1A]/5 rounded-sm flex flex-col gap-2">
+          {/* <div className="border border-dashed border-[#7A9A7A]/30 p-3 bg-[#1A2E1A]/5 rounded-sm flex flex-col gap-2">
             <div className="text-[10px] text-[#007A40] font-mono tracking-wider uppercase mb-1">[ OPTIONAL: PRE-FLIGHT PRIVACY ]</div>
             <label className="flex items-center gap-3 cursor-pointer text-xs font-mono text-[#1A2E1A]">
               <input type="checkbox" checked={blurEnabled} onChange={(e) => setBlurEnabled(e.target.checked)} className="accent-[#007A40] w-3.5 h-3.5" />
               ✨ Enable surgical background blur immediately
             </label>
             <div className="text-[10px] text-[#7A9A7A] font-mono pl-6.5">Warms up the privacy engine locally to mask your surroundings before you connect.</div>
-          </div>
+          </div> */}
           <button
             onClick={handleCameraCheck}
             className="w-full py-3 border border-[#007A40] text-xs tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8] transition-all mt-2">

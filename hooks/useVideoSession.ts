@@ -18,7 +18,7 @@ interface MediaDanceClientInstance {
   startCall:   (token: string, signalingUrl: string) => Promise<MediaStream | null>;
   disconnect?: () => void;
   enableBackgroundBlur: ({ blurRadius, fps, modelSelection }: BlurOptions) => void;
-  activateAndPublishMedia: (enableBlur: boolean) => Promise<MediaStream | null>;
+  // activateAndPublishMedia: (enableBlur: boolean) => Promise<MediaStream | null>;
   admitPatient(): void;
 }
 
@@ -49,7 +49,7 @@ const initial: VideoSession = {
   remoteStream: null,
   view:         'compact',
   localMuted:   false,
-  videoOff:     true,
+  videoOff:      true,
   error:        null,
 };
 
@@ -59,6 +59,7 @@ export function useVideoSession() {
   const clientRef = useRef<MediaDanceClientInstance | null>(null);
   const localVideoRef  = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const isBlurActiveRef = useRef(false);
 
   const [localStream,  setLocalStream]  = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -121,10 +122,10 @@ export function useVideoSession() {
       clientRef.current = new MediaDanceClient({
         serverUrl: signalingUrl
       });
-      
 
       // enable/diable blur base on system settings
       if (getBlurPreference()) {
+        console.log('[Provider hook] Enabling background blur based on system preference');
         clientRef.current.enableBackgroundBlur({
           blurRadius: 20,
           fps: 24,
@@ -143,9 +144,68 @@ export function useVideoSession() {
           localVideoRef.current.srcObject = stream;
         }
      });
+    
+    clientRef.current.on('blur-ready', (blurredStream: MediaStream | null) => {
+      if (!blurredStream) {
+        console.warn('[Provider hook] Received null stream from blur-ready event. Pipeline may still be warm-starting.');
+        return;
+      }
+
+      console.log('[Provider hook] 🧠 MediaPipe Shader compiled on Attempt 0. Forcing track structural re-bind...');
       
+      // Directly bind the new stream to the local video ref if it exists
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = blurredStream;
+      }
+      
+      // Keep your state clean without creating a brand new container instance
+      setLocalStream(blurredStream);
+    });
+      
+    clientRef.current.on('blurready', (blurredStream: MediaStream) => {
+      console.log('[Provider hook] 🧠 MediaPipe Shader compiled on Attempt 0. Forcing track structural re-bind...');
+      
+      // Update state with a completely new stream instance to break React caching
+      const freshStreamInstance = new MediaStream(blurredStream.getTracks());
+      setLocalStream(freshStreamInstance);
+        
+        // const videoTracks = freshStreamInstance.getVideoTracks();
+        // if (videoTracks.length > 0) {
+        //   videoTracks.forEach((track, index) => {
+        //     console.log(`--- Track [${index}] Diagnostics ---`);
+        //     console.log("ID:", track.id);
+        //     console.log("Label (Camera Name):", track.label);
+        //     console.log("ReadyState:", track.readyState); // Expected: "live" (if "ended", the track is dead)
+        //     console.log("Enabled:", track.enabled);       // Expected: true (if false, it outputs black frames)
+        //     console.log("Muted:", track.muted);           // Expected: false (if true, the browser/hardware muted it)
+            
+        //     // Check constraints currently applied by MediaPipe/Browser
+        //     console.log("Constraints:", track.getConstraints());
+        //     console.log("Settings:", track.getSettings());
+        //   });
+        // } else {
+        //   console.error("❌ No video tracks found in this stream instance!");
+        // }
+
+        // 🔥 THE UI ATTEMPT 0 FIX: Directly update the raw DOM element's srcObject
+        // const videoElement = localVideoRef.current;
+        // if (videoElement) {
+        //   videoElement.srcObject = freshStreamInstance;
+          
+        //   // Re-trigger playback. This instructs the browser layout engine 
+        //   // to dynamically repaint the bound PiP context window seamlessly.
+        //   videoElement.play()
+        //     .then(() => {
+        //       console.log('[Provider hook] Re-bind verified. Video streaming updated.');
+        //     })
+        //     .catch((err) => {
+        //       console.warn('[Provider hook] Video playback re-trigger failed:', err);
+        //     });
+        // }
+      });
+  
       clientRef.current?.on('peer-joined', (data) => {
-        console.log('[Provider] peer-joined received, initiating offer', data);
+        console.log('[Provider hook] peer-joined received, initiating offer', data);
       });
 
       clientRef.current?.on('remote-stream-ready', (stream: MediaStream) => {
@@ -194,7 +254,7 @@ export function useVideoSession() {
     }
   }
 
-  const toggleVideo= async () => {
+  const toggleVideoOrig = async () => {
     // 1. Grab the stream that was already created during startCall
     const rawStream = localStream; 
     if (!rawStream) return;
@@ -208,50 +268,62 @@ export function useVideoSession() {
       // 3. Force React to trigger its layout rendering effect by passing a shallow copy
       setLocalStream(new MediaStream(rawStream.getTracks()));
     }
-     // Force explicit state: Video is no longer off
-      update({ videoOff: false });
+
+    // enable/diable blur base on system settings
+    if (getBlurPreference()) {
+      console.log('[Provider hook] Enabling background blur based on system preference');
+        
+      clientRef.current?.enableBackgroundBlur({
+        blurRadius: 20,
+        fps: 24,
+        modelSelection: 1
+      });
+    }
+    
+    // Force explicit state: Video is no longer off
+    update({ videoOff: false });
+  };
+
+  const toggleVideo = async () => {
+    const rawStream = localStream; 
+    if (!rawStream) return;
+
+    const videoTrack = rawStream.getVideoTracks()[0];
+    if (!videoTrack) return;
+
+    // 1. Flip the hardware state directly
+    videoTrack.enabled = !videoTrack.enabled;
+    console.log(`[Debug] Video track hardware toggled to: ${videoTrack.enabled}`);
+    
+    // 2. Only invoke the blur engine if video is being turned ON and blur is preferred
+    if (videoTrack.enabled && getBlurPreference()) {
+      // Check an internal ref or SDK state to make sure we don't double-initialize
+      if (!isBlurActiveRef.current) {
+        console.log('[Provider hook] Initializing background blur pipeline on camera wake.');
+        
+        await clientRef.current?.enableBackgroundBlur({
+          blurRadius: 20,
+          fps: 24,
+          modelSelection: 1
+        });
+        
+        isBlurActiveRef.current = true;
+        
+        // 🚀 Fix local PiP: update local video element to point to the processed output stream
+        if (clientRef.current?.media?.localOutputStream && localVideoRef.current) {
+          localVideoRef.current.srcObject = clientRef.current.media.localOutputStream;
+        }
+      }
+    } else if (!videoTrack.enabled) {
+      // Optional: If camera is off, you can choose to cleanly dismantle the pipeline 
+      // or let it idle depending on how your MediaDance SDK handles disabled tracks.
+      console.log('[Provider hook] Camera muted; passing idle states.');
+    }
+
+    // Update signaling state
+    update({ videoOff: !videoTrack.enabled });
   };
   
-  async function toggleVideoBlur() {
-    // 1. Determine action explicitly by what the UI state says
-    const isCurrentlyOff = session.videoOff; 
-
-    if (isCurrentlyOff) {
-      // 🚀 ACTION: TURN CAMERA ON
-      console.log('[useVideoSession]: Running activation pipeline (Turning Cam ON)...');
-      
-      let rawStream = localVideoRef.current?.srcObject as MediaStream | null;
-      
-      // Cold boot check: if we don't have tracks yet, compile them now
-      if (!rawStream && getBlurPreference() ) {
-
-        rawStream = await clientRef.current?.activateAndPublishMedia(true) as MediaStream;
-        if (rawStream && localVideoRef.current) {
-          setLocalStream(rawStream);
-        }
-      } else {
-        // Warm boot: tracks exist, just unmute them
-        rawStream!.getVideoTracks()[0].enabled = true;
-      }
-
-      
-
-      // Force explicit state: Video is no longer off
-      update({ videoOff: false });
-
-    } else {
-      // 🛑 ACTION: TURN CAMERA OFF
-      console.log('[useVideoSession]: Running deactivation pipeline (Turning Cam OFF)...');
-      
-      const track = localStream?.getVideoTracks()[0];
-      if (track) {
-        track.enabled = false; // Safely mute the hardware stream
-      }
-
-      // Force explicit state: Video is now off
-      update({ videoOff: true });
-    }
-  }
 
   function expandFullscreen() { update({ view: 'fullscreen' }); }
   function collapseFullscreen() { update({ view: 'compact' }); }

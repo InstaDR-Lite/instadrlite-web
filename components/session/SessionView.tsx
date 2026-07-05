@@ -90,20 +90,22 @@ export default function SessionView({
       {/* Local PiP — top right, guarded independently */}
       <WebRTCSafetyBoundary
         fallbackFallback={
-          <div className="absolute top-[64px] right-4 w-[180px] h-[120px] border border-red-500/30 bg-[#0C100C] flex items-center justify-center">
+          <div className="absolute top-[64px] right-4 w-[240px] h-[135px] border border-red-500/30 bg-[#0C100C] flex items-center justify-center">
             <span className="text-[10px] text-zinc-500">Cam Error</span>
           </div>
         }
       >
         <div
-          className="absolute top-[64px] right-4 w-[180px] h-[120px] border border-[rgba(221,234,229,0.22)] bg-[#0C100C] overflow-hidden"
+          className="absolute top-[64px] right-4 w-[240px] h-[135px] border border-[rgba(221,234,229,0.22)] bg-[#0C100C] overflow-hidden"
           style={{ transform: 'scaleX(-1)' }}
         >
           <video
+            // key={localStream ? `${localStream.id}-${localStream.getVideoTracks()[0]?.id}` : 'empty'}
             ref={localVideoRef}
             autoPlay
             muted
             playsInline
+            style={{ border: '1px solid rgba(0, 139, 139)' }}
             className="w-full h-full object-cover"
           />
         </div>
