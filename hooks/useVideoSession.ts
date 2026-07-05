@@ -310,9 +310,9 @@ export function useVideoSession() {
         isBlurActiveRef.current = true;
         
         // 🚀 Fix local PiP: update local video element to point to the processed output stream
-        if (clientRef.current?.media?.localOutputStream && localVideoRef.current) {
-          localVideoRef.current.srcObject = clientRef.current.media.localOutputStream;
-        }
+        // if (clientRef.current?.media?.localOutputStream && localVideoRef.current) {
+        //   localVideoRef.current.srcObject = clientRef.current.media.localOutputStream;
+        // }
       }
     } else if (!videoTrack.enabled) {
       // Optional: If camera is off, you can choose to cleanly dismantle the pipeline 

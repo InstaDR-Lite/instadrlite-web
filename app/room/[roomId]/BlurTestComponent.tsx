@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-export const BlurTestComponent = ({ mediaDanceClient }) => {
+export const BlurTestComponent = ({ mediaDanceClient }: { mediaDanceClient: any }) => {
   const videoRef =  useRef<HTMLVideoElement | null>(null);
   const [isBlurActive, setIsBlurActive] = useState(false);
   const [status, setStatus] = useState('');

@@ -13,7 +13,6 @@ interface Props {
 export default function UpNext({ appointment, isMobile = false }: Props) {
 
   const {
-    client,
     session,
     localStream,
     remoteStream,
