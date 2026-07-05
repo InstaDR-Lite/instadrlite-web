@@ -63,8 +63,12 @@ export default function PatientGatePage() {
   const [step, setStep] = useState<GateState>('loading');
   const [appointment, setAppointment] = useState<AppointmentData | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
-  const [blurEnabled, setBlurEnabled] = useState<boolean>(false);
 
+  // A quick helper to determine if the current browser supports your native pipeline
+  const isInsertableStreamsSupported = 
+    typeof window !== 'undefined' &&
+    typeof (window as any).MediaStreamTrackProcessor !== 'undefined' &&
+    typeof (window as any).MediaStreamTrackGenerator !== 'undefined';
 
   const isBlurActiveRef = useRef(false);
 
@@ -287,6 +291,7 @@ export default function PatientGatePage() {
               console.error('[BlurToggle] Click handler execution failed:', err);
             }
           }}
+          disabled={!isInsertableStreamsSupported}
           className="px-6 h-[32px] border border-[#CC2200] text-[10px] tracking-widest uppercase text-[#CC2200] transition-all"
         >
           Blur On

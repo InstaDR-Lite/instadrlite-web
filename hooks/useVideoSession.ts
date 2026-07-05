@@ -65,6 +65,12 @@ export function useVideoSession() {
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const update = (patch: Partial<VideoSession>) => setSession(prev => ({ ...prev, ...patch }));
 
+// A quick helper to determine if the current browser supports your native pipeline
+  const isInsertableStreamsSupported = 
+    typeof window !== 'undefined' &&
+    typeof (window as any).MediaStreamTrackProcessor !== 'undefined' &&
+    typeof (window as any).MediaStreamTrackGenerator !== 'undefined';
+  
   useEffect(() => {
     if (localStream && localVideoRef.current) {
       console.log('[Debug] useEffect attaching local stream');
@@ -115,7 +121,7 @@ export function useVideoSession() {
       });
       
       // After the status update fetch
-      console.log('[Debug] Updated status to in_session for room:', roomId);
+      update({ status: 'connecting' });
       
       // Create MediaDance client
       const { MediaDanceClient } = await import('@mediadance/client-sdk');
@@ -123,18 +129,9 @@ export function useVideoSession() {
         serverUrl: signalingUrl
       });
 
-      // enable/diable blur base on system settings
-      if (getBlurPreference()) {
-        console.log('[Provider hook] Enabling background blur based on system preference');
-        clientRef.current.enableBackgroundBlur({
-          blurRadius: 20,
-          fps: 24,
-          modelSelection: 1
-        });
-      }
 
       // Register events immediately after creation
-     clientRef.current?.on('local-stream-ready', (stream: MediaStream) => {
+      clientRef.current?.on('local-stream-ready', (stream: MediaStream) => {
         // Start with camera OFF
         stream.getVideoTracks().forEach(track => { track.enabled = false; });
         
@@ -145,63 +142,21 @@ export function useVideoSession() {
         }
      });
     
-    clientRef.current.on('blur-ready', (blurredStream: MediaStream | null) => {
-      if (!blurredStream) {
-        console.warn('[Provider hook] Received null stream from blur-ready event. Pipeline may still be warm-starting.');
-        return;
-      }
+      clientRef.current.on('blur-ready', (blurredStream: MediaStream | null) => {
+        if (!blurredStream) {
+          console.warn('[Provider hook] Received null stream from blur-ready event. Pipeline may still be warm-starting.');
+          return;
+        }
 
-      console.log('[Provider hook] 🧠 MediaPipe Shader compiled on Attempt 0. Forcing track structural re-bind...');
-      
-      // Directly bind the new stream to the local video ref if it exists
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = blurredStream;
-      }
-      
-      // Keep your state clean without creating a brand new container instance
-      setLocalStream(blurredStream);
-    });
-      
-    clientRef.current.on('blurready', (blurredStream: MediaStream) => {
-      console.log('[Provider hook] 🧠 MediaPipe Shader compiled on Attempt 0. Forcing track structural re-bind...');
-      
-      // Update state with a completely new stream instance to break React caching
-      const freshStreamInstance = new MediaStream(blurredStream.getTracks());
-      setLocalStream(freshStreamInstance);
+        console.log('[Provider hook] 🧠 MediaPipe Shader compiled on Attempt 0. Forcing track structural re-bind...');
         
-        // const videoTracks = freshStreamInstance.getVideoTracks();
-        // if (videoTracks.length > 0) {
-        //   videoTracks.forEach((track, index) => {
-        //     console.log(`--- Track [${index}] Diagnostics ---`);
-        //     console.log("ID:", track.id);
-        //     console.log("Label (Camera Name):", track.label);
-        //     console.log("ReadyState:", track.readyState); // Expected: "live" (if "ended", the track is dead)
-        //     console.log("Enabled:", track.enabled);       // Expected: true (if false, it outputs black frames)
-        //     console.log("Muted:", track.muted);           // Expected: false (if true, the browser/hardware muted it)
-            
-        //     // Check constraints currently applied by MediaPipe/Browser
-        //     console.log("Constraints:", track.getConstraints());
-        //     console.log("Settings:", track.getSettings());
-        //   });
-        // } else {
-        //   console.error("❌ No video tracks found in this stream instance!");
-        // }
-
-        // 🔥 THE UI ATTEMPT 0 FIX: Directly update the raw DOM element's srcObject
-        // const videoElement = localVideoRef.current;
-        // if (videoElement) {
-        //   videoElement.srcObject = freshStreamInstance;
-          
-        //   // Re-trigger playback. This instructs the browser layout engine 
-        //   // to dynamically repaint the bound PiP context window seamlessly.
-        //   videoElement.play()
-        //     .then(() => {
-        //       console.log('[Provider hook] Re-bind verified. Video streaming updated.');
-        //     })
-        //     .catch((err) => {
-        //       console.warn('[Provider hook] Video playback re-trigger failed:', err);
-        //     });
-        // }
+        // Directly bind the new stream to the local video ref if it exists
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = blurredStream;
+        }
+        
+        // Keep your state clean without creating a brand new container instance
+        setLocalStream(blurredStream);
       });
   
       clientRef.current?.on('peer-joined', (data) => {
@@ -254,35 +209,6 @@ export function useVideoSession() {
     }
   }
 
-  const toggleVideoOrig = async () => {
-    // 1. Grab the stream that was already created during startCall
-    const rawStream = localStream; 
-    if (!rawStream) return;
-
-    // 2. Simply flip the hardware track state directly without touching the SDK connection
-    const videoTrack = rawStream.getVideoTracks()[0];
-    if (videoTrack) {
-      videoTrack.enabled = !videoTrack.enabled;
-      console.log(`[Debug] Video track hardware toggled to: ${videoTrack.enabled}`);
-      
-      // 3. Force React to trigger its layout rendering effect by passing a shallow copy
-      setLocalStream(new MediaStream(rawStream.getTracks()));
-    }
-
-    // enable/diable blur base on system settings
-    if (getBlurPreference()) {
-      console.log('[Provider hook] Enabling background blur based on system preference');
-        
-      clientRef.current?.enableBackgroundBlur({
-        blurRadius: 20,
-        fps: 24,
-        modelSelection: 1
-      });
-    }
-    
-    // Force explicit state: Video is no longer off
-    update({ videoOff: false });
-  };
 
   const toggleVideo = async () => {
     const rawStream = localStream; 
@@ -296,7 +222,7 @@ export function useVideoSession() {
     console.log(`[Debug] Video track hardware toggled to: ${videoTrack.enabled}`);
     
     // 2. Only invoke the blur engine if video is being turned ON and blur is preferred
-    if (videoTrack.enabled && getBlurPreference()) {
+    if (isInsertableStreamsSupported && videoTrack.enabled && getBlurPreference()) {
       // Check an internal ref or SDK state to make sure we don't double-initialize
       if (!isBlurActiveRef.current) {
         console.log('[Provider hook] Initializing background blur pipeline on camera wake.');
