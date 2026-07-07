@@ -49,10 +49,11 @@ interface PatientOnboardingFlowProps {
   appointment: any;
   onComplete: (blurSelection: boolean) => void;
   onError: (msg: string) => void;
+  currentStep?: OnboardingStep;
 }
 
-export default function PatientOnboardingFlow({ appointment, onComplete, onError }: PatientOnboardingFlowProps) {
-  const [step, setStep] = useState<OnboardingStep>('name');
+export default function PatientOnboardingFlow({ appointment, onComplete, onError, currentStep }: PatientOnboardingFlowProps) {
+  const [step, setStep] = useState<OnboardingStep>(currentStep || 'name');
   const [consentChecked, setConsentChecked] = useState(false);
   const [blurEnabled, setBlurEnabled] = useState<boolean>(false);
   const [geoStatus, setGeoStatus] = useState<'pending' | 'verified' | 'failed'>('pending');
@@ -124,6 +125,13 @@ export default function PatientOnboardingFlow({ appointment, onComplete, onError
       // Validate device permissions safely
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       stream.getTracks().forEach(track => track.stop()); // Instantly release it back to the hardware
+
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointment?.id}/camera`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permitted: true })
+      });
+
       setStep('geo');
       handleGeoVerify();
     } catch {
@@ -252,7 +260,22 @@ export default function PatientOnboardingFlow({ appointment, onComplete, onError
         </p>
         {clientSecret && (
           <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'flat' } }}>
-            <CopayForm paymentAmount={Number(appointment?.paymentAmount)} onSuccess={() => onComplete(blurEnabled)} />
+            <CopayForm
+              paymentAmount={Number(appointment?.paymentAmount)}
+              onSuccess={async () => {
+
+                try {
+                  await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointment?.id}/payment`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ paid: "paid" })
+                  });
+                  onComplete(blurEnabled);
+                } catch (err: any) {
+                  onError('Failed to save consent choice.');
+                }
+              }}
+            />
           </Elements>
         )}
       </Shell>

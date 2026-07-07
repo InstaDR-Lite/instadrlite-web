@@ -10,6 +10,7 @@ import { usePatientVideoSession } from '@/hooks/usePatientVideoSession';
 // import { BlurTestComponent } from './BlurTestComponent';
 
 type GateState = 'loading' | 'too_early' | 'expired' | 'onboarding' | 'media_connected';
+type OnboardingStep = 'name' | 'consent' | 'camera' | 'geo' | 'copay';
 
 interface AppointmentData {
   id: string;
@@ -20,6 +21,8 @@ interface AppointmentData {
   paymentAmount: number | null;
   paymentStatus: string;
   consentSigned: boolean;
+  geoVerified: boolean;
+  cameraPermitted: boolean;
   roomId: string;
   provider: {
     name: string;
@@ -33,11 +36,6 @@ interface ShellProps {
   children: React.ReactNode;
   providerName?: string;
 }
-
-// interface BlurControlsProps {
-//   onEnableBlur: (options: any) => Promise<any>;
-//   onDisableBlur: () => Promise<any>;
-// }
 
 function Shell({ children, providerName }: ShellProps) {
   return (
@@ -61,6 +59,7 @@ export default function PatientGatePage() {
   const roomId = params.roomId as string;
 
   const [step, setStep] = useState<GateState>('loading');
+  const [currentstep, setCurrentStep] = useState<OnboardingStep>('name');
   const [appointment, setAppointment] = useState<AppointmentData | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
 
@@ -109,6 +108,36 @@ export default function PatientGatePage() {
     }
   };
 
+  useEffect(() => {
+
+    if (!appointment) return;
+    
+    console.log('Appointment data loaded:', appointment);
+    const { consentSigned, cameraPermitted, geoVerified, paymentAmount, paymentStatus } = appointment;
+    
+    const onboardingFinished = 
+          consentSigned && 
+          geoVerified && 
+          (paymentAmount === null || paymentStatus === 'paid');
+    
+    console.log('Onboarding finished:', onboardingFinished);
+    // On load check what's already completed
+    if (onboardingFinished) {
+      setStep('media_connected'); // skip straight to waiting
+    } else {
+      setStep('onboarding');
+      if (consentSigned && cameraPermitted && geoVerified && (paymentAmount !== null || paymentStatus === 'unpaid')) {
+        setCurrentStep('copay');
+      } else if (consentSigned && cameraPermitted ) {
+        setCurrentStep('geo');
+      } else if (consentSigned) {
+        setCurrentStep('camera');
+      } else {
+        setCurrentStep('consent');
+      }
+    } 
+  }, [appointment]);
+  
   useEffect(() => {
   if (remoteStream && remoteVideoRef.current) {
     remoteVideoRef.current.srcObject = remoteStream;
@@ -206,6 +235,7 @@ export default function PatientGatePage() {
         appointment={appointment}
         onComplete={handleOnboardingComplete}
         onError={(msg) => setPageError(msg)}
+        currentStep={currentstep} // Pass the current step to the onboarding flow
       />
     );
   }

@@ -496,7 +496,7 @@ export default function ProviderRoomPage() {
         {/* Waiting room card */}
         <div className="border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8] p-5 flex flex-col gap-4">
           <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase">
-            // virtual waiting room
+            virtual waiting room
           </div>
 
           {waiting ? (
@@ -509,7 +509,7 @@ export default function ProviderRoomPage() {
               </p>
               <div className="flex items-center gap-2 text-[11px] text-[#007A40] font-mono">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#007A40] animate-pulse" />
-                // waiting for provider...
+                waiting for provider...
               </div>
             </div>
           ) : (
