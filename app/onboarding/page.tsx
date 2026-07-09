@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import PlanSelectionModal from '@/components/PlanSelectionModal';
 
 const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
@@ -27,6 +28,8 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAuthorizing, setIsAuthorizing] = useState(true);
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const searchParams = useSearchParams();
   
   const [form, setForm] = useState({
     providerType:   '',
@@ -76,28 +79,30 @@ export default function OnboardingPage() {
 
 
   /**
-   * This useEffect is the gatekeeper to the entire onboarding flow. It checks if the user has access to this page by either:
+   * This useEffect is the gatekeeper to the entire onboarding flow. It checks 
+   * if the user has access to this page by either:
    * 1. Just returned from a successful Stripe checkout session (indicated by a URL query param)
    * 2. Has a valid promo code that bypasses the paywall (stored in localStorage by the signup page)
    * 
    * If neither condition is met, it immediately redirects them to the Stripe checkout flow.
    */
   useEffect(() => {
+
     const evaluateAccessPipeline = async () => {
 
       // 1. Check if they just returned from a successful Stripe checkout session
-    const urlParams = new URLSearchParams(window.location.search);
-    const isJustSubscribed = urlParams.get('subscribed') === 'true';
+      const urlParams = new URLSearchParams(window.location.search);
+      const isJustSubscribed = urlParams.get('subscribed') === 'true';
 
-    if (isJustSubscribed) {
-      console.log("🎉 User returned from successful Stripe checkout. Granting access!");
-      
-      // OPTIONAL: Clean up the URL query param so a manual reload doesn't get weird
-      // window.history.replaceState({}, document.title, window.location.pathname);
-      
-      setIsAuthorizing(false);
-      return; // Exit early! Do not pass go, do not redirect to Stripe.
-    }
+      if (isJustSubscribed) {
+        console.log("🎉 User returned from successful Stripe checkout. Granting access!");
+        
+        // OPTIONAL: Clean up the URL query param so a manual reload doesn't get weird
+        // window.history.replaceState({}, document.title, window.location.pathname);
+        
+        setIsAuthorizing(false);
+        return; // Exit early! Do not pass go, do not redirect to Stripe.
+      }
       
       // 1. Snag any pending promo code left in storage by the signup card
       const pendingPromo = localStorage.getItem('pending_promo_code');
@@ -106,10 +111,10 @@ export default function OnboardingPage() {
         try {
           // 2. Validate it against your single endpoint
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/validate-promo`, {
-            method:      'POST',
-            headers:     { 'Content-Type': 'application/json' },
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body:        JSON.stringify({ code: pendingPromo })
+            body: JSON.stringify({ code: pendingPromo })
           });
           
           const promoData = await res.json();
@@ -129,20 +134,59 @@ export default function OnboardingPage() {
         }
       }
 
-      // Get checkout URL immediately after signup
-      const checkoutRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/subscription/checkout`, {
-        method:      'POST',
-        headers:     { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body:        JSON.stringify({ plan: localStorage.getItem('selected_plan') || 'monthly' })
-      });
-      const checkoutData = await checkoutRes.json();
-      window.location.href = checkoutData.url;  // → Stripe Checkout
-    };
+      // 3. If neither condition is met, redirect to Stripe checkout
+      console.log("🚨 No valid promo or Stripe session found. Redirecting to Stripe checkout...");
+
+      const isPlanSelected = localStorage.getItem('selectedplan');
+      if (isPlanSelected) {
+        // Get checkout URL immediately after signup
+        const checkoutRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/subscription/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ plan: localStorage.getItem('selected_plan') || 'monthly' })
+        });
+        
+        const checkoutData = await checkoutRes.json();
+        window.location.href = checkoutData.url;  // → Stripe Checkout
+      } else {
+        console.log("No plan selected in localStorage. Redirecting to signup page.");
+        setShowPlanModal(true);
+        setIsAuthorizing(false); // Allow the modal to render so they can select a plan
+        return;
+      };
+    }
 
     evaluateAccessPipeline();
   }, []);
   
+
+  useEffect(() => {
+    const sessionId = searchParams.get('session_id');
+    const error = searchParams.get('error');
+
+    // Prevent multiple executions or executing if parameters are already wiped
+    if (!sessionId && !error) return;
+
+    const verifySubscription = async () => {
+      if (sessionId) {
+        try {
+          await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/stripe/subscription/status?session_id=${sessionId}`,
+            { credentials: 'include' }
+          );
+        } catch (err) {
+          console.error("Failed to verify subscription:", err);
+        }
+      }
+      // Wipes the query strings from the URL bar clean
+      router.replace('/onboarding');
+    };
+
+    verifySubscription();
+  }, [searchParams, router]);
+
+
   // While the useEffect is talking to the DB/Stripe, show a clean, high-end loading state
   if (isAuthorizing) {
     return (
@@ -154,6 +198,27 @@ export default function OnboardingPage() {
       </div>
     );
   }
+
+  if (showPlanModal) {
+    return <PlanSelectionModal
+      isOpen={showPlanModal}
+      onClose={() => setShowPlanModal(false)}
+      onSelect={async (plan) => {
+        // trigger Stripe checkout
+        localStorage.setItem('pending_plan', plan);
+        // call your existing checkout endpoint
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/subscription/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ plan })
+        });
+        const data = await res.json();
+        window.location.href = data.url;
+      }}
+    />
+  }
+
 
   return (
     <div className="min-h-screen bg-[#edf1f7] flex items-center justify-center p-4">

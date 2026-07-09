@@ -9,7 +9,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <Suspense fallback={null}>
-
       <DashboardLayoutInner>
         {children}
       </DashboardLayoutInner>
@@ -24,21 +23,29 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
   const router = useRouter();
 
-
   useEffect(() => {
     const settings = searchParams.get('settings');
     const sessionId = searchParams.get('session_id');
     const error = searchParams.get('error');
 
-    setTimeout(async () => {
-      // Check subscription status if session_id present
+    // GUARD: If none of our target parameters are in the URL, stop immediately.
+    // This prevents the infinite loop after router.replace('/dashboard') runs.
+    if (!settings && !sessionId && !error) return;
+
+    const handleDashboardParams = async () => {
+      // 1. Handle Stripe verification if a session exists
       if (sessionId) {
-        await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/stripe/subscription/status?session_id=${sessionId}`,
-          { credentials: 'include' }
-        );
+        try {
+          await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/stripe/subscription/status?session_id=${sessionId}`,
+            { credentials: 'include' }
+          );
+        } catch (err) {
+          console.error("Failed to verify subscription status:", err);
+        }
       }
 
+      // 2. Handle UI View states synchronously 
       if (settings) {
         setDefaultTab(settings);
         setShowSettings(true);
@@ -49,9 +56,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         setShowSettings(true);
       }
 
-      if (settings || error) router.replace('/dashboard');
-    }, 0);
-  }, [router, searchParams]);
+      // 3. Clean the URL bar completely
+      router.replace('/dashboard');
+    };
+
+    handleDashboardParams();
+  }, [searchParams, router, setDefaultTab, setShowSettings]);
 
   return (
     <div className="min-h-screen bg-[#edf1f7]">
