@@ -103,7 +103,6 @@ export function useVideoSession() {
       },
     );
     const data = await res.json();
-    // console.log('[Debug] Token response:', data);
     return { token: data.token, signalingUrl: data.signalingUrl };
   }
 
@@ -111,7 +110,7 @@ export function useVideoSession() {
     try {
       update({ status: 'requesting_token', view: skipCompact ? 'fullscreen' : 'compact' });
       const { token, signalingUrl } = await requestToken(roomId);
-      
+
       // Update appointment status to in_session
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/room/${roomId}/status`, {
         method:      'POST',
@@ -123,12 +122,20 @@ export function useVideoSession() {
       // After the status update fetch
       update({ status: 'connecting' });
       
-      // Create MediaDance client
-      const { MediaDanceClient } = await import('@mediadance/client-sdk');
-      clientRef.current = new MediaDanceClient({
-        serverUrl: signalingUrl
+      // Fetch TURN credentials from your backend
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/turn/turn-credentials`, {
+        method: 'POST', // Switch to POST to send a body cleanly
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomId }) 
       });
+      const { iceServers } = await res.json();
 
+      const { MediaDanceClient } = await import('@mediadance/client-sdk');
+      // Initialize the MediaDanceClient with the signaling URL and ICE servers
+      clientRef.current = new MediaDanceClient({
+        serverUrl: signalingUrl,
+        iceServers, // passed in, SDK doesn't care where they came from
+      });
 
       // Register events immediately after creation
       clientRef.current?.on('local-stream-ready', (stream: MediaStream) => {
@@ -140,7 +147,7 @@ export function useVideoSession() {
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
-     });
+      });
     
       clientRef.current.on('blur-ready', (blurredStream: MediaStream | null) => {
         if (!blurredStream) {

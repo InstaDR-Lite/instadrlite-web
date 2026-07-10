@@ -124,8 +124,8 @@ export function usePatientVideoSession(roomId: string) {
     });
   };
 
+  // Ends an active session
   async function endSession() {
-   
     try {
       await clientRef.current?.disconnect?.();
     } catch (_) {}
@@ -142,11 +142,11 @@ export function usePatientVideoSession(roomId: string) {
   const warmupSession = async () => {
     try {
       setStatus('warmup');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/room/${roomId}/guest-token`, {
+      let res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/room/${roomId}/guest-token`, {
         method: 'POST'
       });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
+      const { success, token, error, signalingUrl } = await res.json();
+      if (!success) throw new Error(error);
 
       // Fallback if the eager-load hasn't completed yet
       if (!MediaDanceClientClassRef.current) {
@@ -154,13 +154,23 @@ export function usePatientVideoSession(roomId: string) {
         MediaDanceClientClassRef.current = MediaDanceClient;
       }
 
+      // Fetch TURN credentials from your backend
+      res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/turn/turn-credentials`, {
+        method: 'POST', // Switch to POST to send a body cleanly
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomId }) 
+      });
+      const { iceServers } = await res.json();
+
+      // Create an instance of MediaDance client to connect with signaling
       const ClientClass = MediaDanceClientClassRef.current;
-      clientRef.current = new ClientClass({ serverUrl: data.signalingUrl });
+      clientRef.current = new ClientClass({
+        serverUrl: signalingUrl,
+        iceServers: iceServers
+      });
 
       clientRef.current.initMedia();
-      setClient(clientRef.current);
-        
-      // Inside your video session hook where events are registered
+      setClient(clientRef.current);  
 
       // 1. Raw Stream Event Listener
       clientRef.current.on('local-stream-ready', (stream: MediaStream) => {
@@ -192,7 +202,7 @@ export function usePatientVideoSession(roomId: string) {
         setRemoteStream(stream);
       });
 
-      await clientRef.current.connectSignaling(data.token, data.signalingUrl);
+      await clientRef.current.connectSignaling(token, signalingUrl);
       
       clientRef.current.on('patient-admitted', async () => {
         clientRef.current?.joinRoom();

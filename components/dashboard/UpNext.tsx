@@ -62,7 +62,7 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
     hour: '2-digit', minute: '2-digit', hour12: true
   });
 
-  const canStart = appointment.status === 'ready';
+  const canStart = appointment.status === 'ready' || 'in_session';
 
   return (
     <div className="flex-1 flex flex-col">
