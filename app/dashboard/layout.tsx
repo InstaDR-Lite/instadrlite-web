@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import TopNav from '@/components/layout/TopNav';
 import SettingsModal from '@/components/settings/SettingsModal';
 import { Suspense } from 'react';
+import CallLogDrawer from '@/components/callLogDrawer/CallLogDrawer';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
 
@@ -18,6 +19,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [showSettings, setShowSettings] = useState(false);
+  const [showCallLog, setShowCallLog] = useState(false);
   const [defaultTab, setDefaultTab] = useState<string>('room');
   const searchParams = useSearchParams();
 
@@ -65,12 +67,20 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#edf1f7]">
-      <TopNav onSettingsOpen={() => setShowSettings(true)} />
+      <TopNav
+        onSettingsOpen={() => setShowSettings(true)}
+        onShowCallLogDrawer={() => setShowCallLog(true) }
+      />
       <main className="pt-[88px] h-screen">{children}</main>
       {showSettings && (
         <SettingsModal
           defaultTab={defaultTab as any}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+      {showCallLog && (
+        <CallLogDrawer
+          onClose={() => setShowCallLog(false)}
         />
       )}
     </div>

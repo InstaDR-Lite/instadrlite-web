@@ -1,12 +1,14 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
+import { Settings, Logs } from 'lucide-react';
 
 interface TopNavProps {
   onSettingsOpen?: () => void;
+  onShowCallLogDrawer?: () => void;
 }
 
-export default function TopNav({ onSettingsOpen }: TopNavProps) {
+export default function TopNav({ onSettingsOpen, onShowCallLogDrawer }: TopNavProps) {
   const pathname = usePathname();
   const isDash   = pathname === '/dashboard';
   const router = useRouter();
@@ -37,7 +39,13 @@ export default function TopNav({ onSettingsOpen }: TopNavProps) {
             className="w-7 h-7 border border-[rgba(0,80,40,0.18)] flex items-center justify-center text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all text-xs"
             onClick={onSettingsOpen}
           >
-            ⚙
+            <Settings size={16} color="var(--color-teal)" />
+          </button>
+          <button
+            className="w-7 h-7 border border-[rgba(0,80,40,0.18)] flex items-center justify-center text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all text-xs"
+            onClick={onShowCallLogDrawer}
+          >
+            <Logs size={16} color="var(--color-teal)" />
           </button>
         </div>
       </div>

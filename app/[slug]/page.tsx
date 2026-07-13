@@ -65,11 +65,11 @@ export default function ProviderRoomPage() {
   };
 
   const handlePrevWeek = () => {
-  if (weekOffset === 0) return; // can't go to past
-  const newOffset = weekOffset - 1;
-  setWeekOffset(newOffset);
-  fetchSlots(newOffset);
-};
+    if (weekOffset === 0) return; // can't go to past
+    const newOffset = weekOffset - 1;
+    setWeekOffset(newOffset);
+    fetchSlots(newOffset);
+} ;
 
   const handleNextWeek = () => {
     const newOffset = weekOffset + 1;
@@ -108,7 +108,6 @@ export default function ProviderRoomPage() {
       .then(data => {
         if (!data.success) { setNotFound(true); return; }
         setProvider(data.provider);
-        console.log(data.provider);
         setLoading(false);
       })
       .catch(() => { setNotFound(true); setLoading(false); });
@@ -481,7 +480,10 @@ export default function ProviderRoomPage() {
       )}
 
         <button
-          onClick={() => { fetchSlots(); setPageView('booking'); }}
+          onClick={() => {
+            fetchSlots();
+            setPageView('booking');
+          }}
           className="w-full py-3 border border-[#007A40] text-xs tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8] transition-all mb-3"
           >
           [ book a session ]

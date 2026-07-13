@@ -18,7 +18,11 @@ interface Props {
   onEnd:          () => void;
   onToggleMute:   () => void;
   onToggleVideo:  () => void;
-  onCollapse:     () => void;
+  onCollapse: () => void;
+  patientAdmitted: boolean;
+  onPatientAdmitted: (admitted: boolean) => void;
+  elapsedSeconds: number;
+  onStartTimer: () => void;
 }
 
 export default function SessionView({
@@ -32,14 +36,18 @@ export default function SessionView({
   onEnd,
   onToggleMute,
   onToggleVideo,
-  onCollapse
+  onCollapse,
+  patientAdmitted,
+  onPatientAdmitted,
+  elapsedSeconds,
+  onStartTimer
 }: Props) {
 
-  const [patientAdmitted, setPatientAdmitted] = useState<boolean>(false);
+  // const [patientAdmitted, setPatientAdmitted] = useState<boolean>(false);
   const [showLobbyUI, setShowLobbyUI] = useState(false);
   const [isAdmitting, setIsAdmitting] = useState(false);
 
-
+  console.log('[Session View]: elapsed seconds', appointment.id);
   // Re-attach streams whenever SessionView mounts
   useEffect(() => {
     if (localStream && localVideoRef.current) {
@@ -69,9 +77,15 @@ export default function SessionView({
       {/* Top bar */}
       <div className="h-[44px] flex-shrink-0 flex items-center justify-between px-6 border-b border-[rgba(0,255,140,0.12)]">
         <div className="flex items-center gap-3">
+          
           <span className="w-1.5 h-1.5 rounded-full bg-[#00FF8C] animate-pulse" />
           <span className="text-xs tracking-widest text-[#E8F5E8] uppercase">
             {appointment.patientName}
+          </span>
+        </div>
+        <div>
+          <span className="font-mono text-[17px] text-[#00FF8C] tracking-widest">
+            Session Time: {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, '0')}
           </span>
         </div>
         <button
@@ -129,10 +143,15 @@ export default function SessionView({
 
             <div className="flex space-x-3 justify-end">
               <button 
-                onClick={() => {
+                onClick={async () => {
                   setIsAdmitting(true);
                   handleAdmit();
-                  setPatientAdmitted(true);
+                  onPatientAdmitted(true);
+                   await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointment.id}/session-start`, {
+                    method: 'POST',
+                    credentials: 'include',
+                   });
+                  onStartTimer();
                   setIsAdmitting(false);
                 }}
                 className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 text-white font-medium text-sm rounded-lg transition-colors shadow-lg shadow-emerald-900/20"
@@ -170,7 +189,7 @@ export default function SessionView({
           onClick={onEnd}
           className="px-6 h-[32px] border border-[#CC2200] text-[10px] tracking-widest uppercase text-[#CC2200] hover:bg-[#CC2200] hover:text-[#edf1f7] transition-all"
         >
-          ✕ end session
+          ✕ end 
         </button>
       </div>
     </div>

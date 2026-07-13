@@ -4,6 +4,8 @@
 import { Appointment } from '@/app/dashboard/page';
 import { useVideoSession } from '@/hooks/useVideoSession';
 import SessionView from '../session/SessionView';
+import AuditPanel from '../callLogDrawer/AuditPanel';
+import { useRef, useState } from 'react';
 
 interface Props {
   appointment: Appointment | null;
@@ -21,12 +23,35 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
     startSession,
     handleAdmitClick,
     endSession,
+    onSessionEnded,
     toggleMute,
     toggleVideo,
     expandFullscreen,
     collapseFullscreen,
   } = useVideoSession();
   
+  // once a session is complete
+  const [showSessionSummary, setShowSessionSummary] = useState(false);
+  const [patientAdmitted, setPatientAdmitted] = useState(false)
+
+  // UpNext
+  const [elapsedSecs, setElapsedSecs] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  function startTimer() {
+    if (timerRef.current) return;
+    timerRef.current = setInterval(() => {
+      setElapsedSecs(prev => prev + 1);
+    }, 1000);
+  }
+
+  function stopTimer() {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+      setElapsedSecs(0);
+    }
+  }
   
   // State 3 — fullscreen overlay
   if (session.view === 'fullscreen') {
@@ -43,6 +68,10 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
         onToggleMute={toggleMute}
         onToggleVideo={toggleVideo}
         onCollapse={collapseFullscreen}
+        patientAdmitted={patientAdmitted}
+        onPatientAdmitted={setPatientAdmitted}
+        onStartTimer={startTimer}
+        elapsedSeconds={elapsedSecs}
       />
     );
   }
@@ -62,7 +91,8 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
     hour: '2-digit', minute: '2-digit', hour12: true
   });
 
-  const canStart = appointment.status === 'ready' || 'in_session';
+
+  const canStart = appointment.status === 'ready' || appointment.status === 'in_session';
 
   return (
     <div className="flex-1 flex flex-col">
@@ -115,25 +145,25 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
             <span className={
               appointment.status === 'ready' ? 'text-[#007A40]' : 'text-[#7A9A7A]'
             }>
-              {appointment.status === 'ready'
-                ? 'READY TO CONNECT'
-                : appointment.status === 'checking_in'
-                ? 'CHECKING IN...'
-                : 'SCHEDULED'}
+              {appointment.status === 'completed' ? 'COMPLETED'
+              : appointment.status === 'ready' ? 'READY TO CONNECT'
+              : appointment.status === 'checking_in' ? 'CHECKING IN...'
+              : appointment.status === 'in_session' ? 'IN SESSION'
+              : 'SCHEDULED'}
             </span>
             {/* Copy invite link */}
           </div>
-            <div>
-
-              <button
-                onClick={() => navigator.clipboard.writeText(
-                  `${process.env.NEXT_PUBLIC_WEB_URL}/room/${appointment.roomId}`
-                )}
-                className="py-2 px-4 border border-[rgba(0,80,40,0.18)] text-[10px] tracking-widest uppercase text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all mb-3"
-              >
-                copy invite link
-              </button>
-            </div>
+      
+          <div>
+            <button
+              onClick={() => navigator.clipboard.writeText(
+                `${process.env.NEXT_PUBLIC_WEB_URL}/room/${appointment.roomId}`
+              )}
+              className="py-2 px-4 border border-[rgba(0,80,40,0.18)] text-[10px] tracking-widest uppercase text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all mb-3"
+            >
+              copy invite link
+            </button>
+          </div>
         </div>
 
 
@@ -157,40 +187,76 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
             >
               {session.status === 'requesting_token' ? '// requesting token...'
                 : session.status === 'connecting' ? '// connecting...'
+                : appointment.status === 'completed' ? '// session completed'
                 : canStart ? '[ START SESSION ]'
                 : '// patient not ready'}
-            </button>
-
-            <button
-              onClick={expandFullscreen}
-              className="border border-[rgba(0,80,40,0.18)] px-3 text-[10px] tracking-widest uppercase text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all"
-            >
-              ↗
             </button>
           </div>
         )}
       </div>
 
-      {/* State 2 — video preview when connecting/active */}
-      {/* Compact video preview — desktop only */}
-      {!isMobile && (session.status === 'connecting' ||
-        session.status === 'local_only' ||
-        session.status === 'active') && (
-        <div className="flex-1 flex flex-col">
-          <div className="flex-1 bg-[#1A2E1A] relative flex items-center justify-center m-4">
-            <span className="text-[10px] text-[#3D5C3D] tracking-widest uppercase">
-                initializing video pipeline...
-            </span>
-            {/* Expand button */}
-            <button
+      {/* collapse was clicked */}
+      {session.status === 'active' && (
+        <div className="flex gap-2 m-5">
+          <button
+            onClick={expandFullscreen}
+            className='flex-1 py-3 text-xs tracking-widest uppercase transition-all border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#edf1f7]'
+          >
+            [REJOIN SESSION]
+          </button>
+          <button
               onClick={expandFullscreen}
-              className="absolute top-2 right-2 border border-[rgba(0,255,140,0.22)] px-2 py-1 text-[9px] tracking-widest text-[#7A9A7A] hover:text-[#007A40] transition-all"
+              className="border border-[rgba(0,80,40,0.18)] px-3 text-[10px] tracking-widest uppercase text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all"
             >
-              ↗ expand
-            </button>
+              ↗
+          </button>
+        </div>
+      )}
+
+      {/* End Session Confirmation Modal */}
+      {session.status === 'ending' &&  (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#1A2E1A]/40 animate-fadeIn">
+          <div className="bg-[#F5F0E8] border border-[rgba(0,80,40,0.18)] p-6 w-[300px] animate-slideUp">
+            <div className="font-mono text-[10px] tracking-widest text-[#7A9A7A] uppercase mb-2">
+              // end session
+            </div>
+            <p className="font-mono text-[13px] text-[#1A2E1A] mb-6">
+              Mark this session as complete?
+            </p>
+            <p className="font-mono text-[11px] text-[#7A9A7A] mb-6">
+              This will finalize the session record and generate your call log entry.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={async () => {
+                  onSessionEnded();
+                  await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointment.id}/session-end`, {
+                    method: 'POST',
+                    credentials: 'include',
+                  });
+                  stopTimer();
+                  setTimeout(() => setShowSessionSummary(true), 500);
+                }}
+                className="flex-1 py-2.5 border border-[#CC2200] text-[10px] tracking-widest uppercase text-[#CC2200] hover:bg-[#CC2200] hover:text-white transition-all font-mono"
+              >
+                Yes, complete
+              </button>
+              <button
+                onClick={() => startSession(appointment.roomId, isMobile)}
+                className="flex-1 py-2.5 border border-[rgba(0,80,40,0.18)] text-[10px] tracking-widest uppercase text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all font-mono"
+              >
+                Reconnect
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {session.status === 'ended' && showSessionSummary && <AuditPanel
+        onClose={() => setShowSessionSummary(false)}
+        // showOptOut={true} // only in post-session context
+      />}
+      
     </div>
   );
 }

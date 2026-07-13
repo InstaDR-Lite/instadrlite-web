@@ -88,7 +88,6 @@ export function useVideoSession() {
 
   // 2. Clear click handler
   const handleAdmitClick = () => {
-    console.log('[Debug] Admitting patient ...');
     clientRef.current?.admitPatient();
   };
 
@@ -120,7 +119,7 @@ export function useVideoSession() {
       });
       
       // After the status update fetch
-      update({ status: 'connecting' });
+      update({ status: 'connecting', view: 'fullscreen' });
       
       // Fetch TURN credentials from your backend
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/turn/turn-credentials`, {
@@ -143,7 +142,11 @@ export function useVideoSession() {
         stream.getVideoTracks().forEach(track => { track.enabled = false; });
         
         setLocalStream(stream);
-        update({ status: 'local_only', videoOff: true });
+        // update({
+        //   status: 'local_only',
+        //   videoOff: true,
+        //   view: 'fullscreen'
+        // });
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
@@ -173,7 +176,7 @@ export function useVideoSession() {
       clientRef.current?.on('remote-stream-ready', (stream: MediaStream) => {
         console.log('[Debug] remote-stream-ready fired');
         setRemoteStream(stream);
-        update({ status: 'active' });
+        update({ status: 'active', view: 'fullscreen' });
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = stream;
         }
@@ -198,16 +201,26 @@ export function useVideoSession() {
   }
 
   async function endSession() {
-    update({ status: 'ending' });
     try {
       await clientRef.current?.disconnect?.();
     } catch (_) {}
     setLocalStream(null);
     setRemoteStream(null);
     clientRef.current = null;
-    setTimeout(() => setSession(initial), 500);
+
+    setTimeout(() => {
+      update({
+        status: 'ending',
+        videoOff: false,
+        view: 'compact'
+      })}, 500);
   }
 
+  function sessionCompleted() {
+    update({ status: 'ended' })
+  
+  }
+  
   function toggleMute() {
     const track = localStream?.getAudioTracks()[0];
     if (track) {
@@ -270,6 +283,7 @@ export function useVideoSession() {
     startSession,
     handleAdmitClick,
     endSession,
+    onSessionEnded: sessionCompleted,
     toggleMute,
     toggleVideo,
     expandFullscreen,
