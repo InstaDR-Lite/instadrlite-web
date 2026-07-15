@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import PlanSelectionModal from '@/components/PlanSelectionModal';
 
@@ -23,6 +23,15 @@ const PLACEHOLDERS: Record<string, string> = {
 };
 
 export default function OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingInner/>
+    </Suspense>
+  )
+}
+  
+  
+function OnboardingInner() {
   const router  = useRouter();
   const [step,    setStep]    = useState(0);
   const [loading, setLoading] = useState(false);

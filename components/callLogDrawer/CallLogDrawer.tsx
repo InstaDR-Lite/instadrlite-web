@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
-import AuditPanel, { MOCK_LOGS } from './AuditPanel';
+import AuditPanel, { MOCK_LOGS, CptCode } from './AuditPanel';
+
 
 // ─── MAIN DRAWER ────────────────────────────────────────────────────────────
 

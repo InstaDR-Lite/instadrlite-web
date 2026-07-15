@@ -7,12 +7,10 @@ import { useSearchParams } from 'next/navigation';
 
 
 export default function SignupPage() {
-
   return (
-
-  <Suspense fallback={null}>
-    <SignupInner />
-  </Suspense>
+    <Suspense fallback={null}>
+      <SignupInner />
+    </Suspense>
   )
 }
 

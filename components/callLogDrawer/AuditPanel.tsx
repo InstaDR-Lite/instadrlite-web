@@ -73,11 +73,14 @@ export const MOCK_LOGS = [
   },
 ];
 
+export type CptCode = {
+  code: string;
+  modifier: string;
+  description: string;
+  fee: number;
+}
 
 export default function AuditPanel({ log, onClose }: { log: any, onClose: () => void }) {
-
-
-
 
   const summaryText = [
     `SESSION AUDIT LOG // ROOM_${log.roomId.toUpperCase()}`,
@@ -88,7 +91,7 @@ export default function AuditPanel({ log, onClose }: { log: any, onClose: () => 
     `Consent: ${log.consent ? '[✓ SIGNED]' : '[✕ MISSING]'}`,
     `Payment: $${log.payAmount.toFixed(2)} ${log.payStatus === 'paid' ? '[✓ SETTLED]' : '[PENDING]'}`,
     log.payType === 'insurance' && log.cptCodes && log.cptCodes.length > 0
-      ? `CPT: ${log.cptCodes.map(c => `${c.code}${c.modifier ? `-${c.modifier}` : ''} — ${c.description}`).join(', ')}`
+      ? `CPT: ${log.cptCodes.map((c :CptCode) => `${c.code}${c.modifier ? `-${c.modifier}` : ''} — ${c.description}`).join(', ')}`
       : null,
   ].filter(Boolean).join('\n');
 
@@ -162,7 +165,7 @@ export default function AuditPanel({ log, onClose }: { log: any, onClose: () => 
               <div className="text-[#7A9A7A] text-[11px]">{'-'.repeat(72)}</div>
               
               <div className="flex flex-col gap-2 mt-2">
-                {log.cptCodes.map((cpt) => (
+                {log.cptCodes.map((cpt: CptCode) => (
                   <div 
                     key={cpt.code} 
                     className="border border-[rgba(0,80,40,0.18)] p-3 flex items-center justify-between"

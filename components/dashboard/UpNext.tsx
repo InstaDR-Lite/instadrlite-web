@@ -4,8 +4,8 @@
 import { Appointment } from '@/app/dashboard/page';
 import { useVideoSession } from '@/hooks/useVideoSession';
 import SessionView from '../session/SessionView';
-import AuditPanel from '../callLogDrawer/AuditPanel';
-import { Provider, useRef, useState } from 'react';
+import AuditPanel, { CptCode } from '../callLogDrawer/AuditPanel';
+import { useRef, useState } from 'react';
 
 interface Props {
   appointment: Appointment | null;
