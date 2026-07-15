@@ -5,12 +5,13 @@ import { Appointment } from '@/app/dashboard/page';
 import { useVideoSession } from '@/hooks/useVideoSession';
 import SessionView from '../session/SessionView';
 import AuditPanel from '../callLogDrawer/AuditPanel';
-import { useRef, useState } from 'react';
+import { Provider, useRef, useState } from 'react';
 
 interface Props {
   appointment: Appointment | null;
   isMobile?:   boolean;
 }
+
 
 export default function UpNext({ appointment, isMobile = false }: Props) {
 
@@ -34,6 +35,8 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
   const [showSessionSummary, setShowSessionSummary] = useState(false);
   const [patientAdmitted, setPatientAdmitted] = useState(false)
 
+  const [postSessionData, setPostSessionData] = useState<any>();
+
   // UpNext
   const [elapsedSecs, setElapsedSecs] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -53,6 +56,31 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
     }
   }
   
+  // In UpNext — map summary to AuditPanel log shape
+  function mapToAuditLog(summary: any, cptCodes: CptCode[]) {
+    const durationSecs = summary.session_duration_secs ?? 0;
+    const mins = Math.floor(durationSecs / 60);
+    const secs = durationSecs % 60;
+
+    return {
+      id: `CR-${summary.id.slice(0, 8).toUpperCase()}`,
+      date: new Date(summary.session_ended_at).toLocaleDateString('en-US', {
+        month: '2-digit', day: '2-digit', year: '2-digit'
+      }),
+      roomId: summary.room?.room_reference_id ?? '',
+      patientName: summary.patient_name,
+      duration: `${mins}m ${String(secs).padStart(2, '0')}s`,
+      geoState: summary.geo_verified ? 'CA' : 'N/A',
+      geoOk: summary.geo_verified,
+      consent: summary.consent_signed,
+      payAmount: Number(summary.payment_amount ?? 0),
+      payStatus: summary.payment_status ?? 'unpaid',
+      payType: summary.payment_type ?? 'self_pay',
+      stream: 'LOCKED',
+      cptCodes, // pass through for CPT section
+    };
+  }
+    
   // State 3 — fullscreen overlay
   if (session.view === 'fullscreen') {
     return (
@@ -230,12 +258,27 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
               <button
                 onClick={async () => {
                   onSessionEnded();
+                  
                   await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointment.id}/session-end`, {
                     method: 'POST',
                     credentials: 'include',
                   });
+
+                  // stops the session timer
                   stopTimer();
+                  
+                  // After session-end POST succeeds
+                  const summaryRes = await fetch(
+                    `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/${appointment.id}/summary`,
+                    { credentials: 'include' }
+                  );
+                  const { appointment: summary, cptCodes } = await summaryRes.json();
+                  console.log('[UpNext] Session summary', summary);
+                  const log = mapToAuditLog(summary, cptCodes);
+
+                  setPostSessionData(log);
                   setTimeout(() => setShowSessionSummary(true), 500);
+
                 }}
                 className="flex-1 py-2.5 border border-[#CC2200] text-[10px] tracking-widest uppercase text-[#CC2200] hover:bg-[#CC2200] hover:text-white transition-all font-mono"
               >
@@ -252,10 +295,14 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
         </div>
       )}
 
-      {session.status === 'ended' && showSessionSummary && <AuditPanel
-        onClose={() => setShowSessionSummary(false)}
-        // showOptOut={true} // only in post-session context
-      />}
+
+      {session.status === 'ended' && showSessionSummary && (
+        <AuditPanel
+          log={postSessionData}
+          onClose={() => setShowSessionSummary(false)}
+        // showOptOut={true}
+        />
+      )}
       
     </div>
   );

@@ -47,7 +47,6 @@ export default function SessionView({
   const [showLobbyUI, setShowLobbyUI] = useState(false);
   const [isAdmitting, setIsAdmitting] = useState(false);
 
-  console.log('[Session View]: elapsed seconds', appointment.id);
   // Re-attach streams whenever SessionView mounts
   useEffect(() => {
     if (localStream && localVideoRef.current) {

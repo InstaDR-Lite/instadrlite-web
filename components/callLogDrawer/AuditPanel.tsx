@@ -73,14 +73,11 @@ export const MOCK_LOGS = [
   },
 ];
 
-export default function AuditPanel({ log=MOCK_LOGS[0], onClose }: { log?: typeof MOCK_LOGS[0]; onClose: () => void }) {
-  const durationMins = parseInt(log.duration);
-  
-  // CPT suggestion based on duration
-  const cptCode = durationMins >= 53 ? { code: '90837', desc: 'Psychotherapy, 60 min' }
-    : durationMins >= 38 ? { code: '90834', desc: 'Psychotherapy, 45 min' }
-    : durationMins >= 16 ? { code: '90832', desc: 'Psychotherapy, 30 min' }
-    : null;
+
+export default function AuditPanel({ log, onClose }: { log: any, onClose: () => void }) {
+
+
+
 
   const summaryText = [
     `SESSION AUDIT LOG // ROOM_${log.roomId.toUpperCase()}`,
@@ -90,7 +87,9 @@ export default function AuditPanel({ log=MOCK_LOGS[0], onClose }: { log?: typeof
     `Geo-Verify: ${log.geoState} ${log.geoOk ? '[✓ VERIFIED]' : '[✕ ERROR]'}`,
     `Consent: ${log.consent ? '[✓ SIGNED]' : '[✕ MISSING]'}`,
     `Payment: $${log.payAmount.toFixed(2)} ${log.payStatus === 'paid' ? '[✓ SETTLED]' : '[PENDING]'}`,
-    cptCode && log.payType === 'insurance' ? `CPT: ${cptCode.code} — ${cptCode.desc}` : null,
+    log.payType === 'insurance' && log.cptCodes && log.cptCodes.length > 0
+      ? `CPT: ${log.cptCodes.map(c => `${c.code}${c.modifier ? `-${c.modifier}` : ''} — ${c.description}`).join(', ')}`
+      : null,
   ].filter(Boolean).join('\n');
 
   return (
@@ -157,16 +156,33 @@ export default function AuditPanel({ log=MOCK_LOGS[0], onClose }: { log?: typeof
           </div>
 
           {/* CPT Codes — insurance only */}
-          {log.payType === 'insurance' && cptCode && (
+          {log.payType === 'insurance' && log.cptCodes && log.cptCodes.length > 0 && (
             <div className="mt-4">
               <div className="text-[#007A40]">[ CPT PROCEDURE CODES ]</div>
               <div className="text-[#7A9A7A] text-[11px]">{'-'.repeat(72)}</div>
-              <div className="mt-2 border border-[rgba(0,80,40,0.18)] p-3 flex items-center justify-between">
-                <span className="text-[#007A40] font-semibold">{cptCode.code}</span>
-                <span className="text-[#3D5C3D] flex-1 mx-4">{cptCode.desc}</span>
-                <span className="text-[#1A2E1A]">${log.payAmount.toFixed(2)}</span>
+              
+              <div className="flex flex-col gap-2 mt-2">
+                {log.cptCodes.map((cpt) => (
+                  <div 
+                    key={cpt.code} 
+                    className="border border-[rgba(0,80,40,0.18)] p-3 flex items-center justify-between"
+                  >
+                    <span className="text-[#007A40] font-semibold font-mono">
+                      {cpt.code}{cpt.modifier ? `-${cpt.modifier}` : ''}
+                    </span>
+                    <span className="text-[#3D5C3D] flex-1 mx-4 text-xs md:text-sm">
+                      {cpt.description}
+                    </span>
+                    <span className="text-[#1A2E1A] font-mono">
+                      ${cpt.fee.toFixed(2)}
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div className="text-[#7A9A7A] text-[10px] mt-1">⚡ Suggested — verify before insurance submission</div>
+
+              <div className="text-[#7A9A7A] text-[10px] mt-2">
+                ⚡ Suggested — verify before insurance submission
+              </div>
             </div>
           )}
 
