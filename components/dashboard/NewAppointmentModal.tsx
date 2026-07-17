@@ -17,16 +17,19 @@ const [form, setForm] = useState({
   patientName:   '',
   patientEmail:  '',
   date:          '',
-    startTime:     '',
-    duration:      '50',
-    paymentAmount: ''
+  startTime:     '',
+  duration:      '50',
+  paymentAmount: '0.00',
+  insurance: false,
 });
 
   const [emailSent, setEmailSent] = useState(false);
   const [createdAppointment, setCreatedAppointment] = useState<any>(null);
+  const [insurance, setInsurance] = useState<boolean>(false);
 
-// In handleSubmit after success:
-
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
 
   const isEdit = !!appointment;
 
@@ -48,22 +51,18 @@ const [form, setForm] = useState({
             })()
           : '',
         duration:      '50',
-        paymentAmount: appointment?.paymentAmount?.toString() || ''
+        paymentAmount: appointment?.paymentAmount?.toString() || '',
+        insurance: appointment?.paymentType === 'insurance'
       });
     }
   }, [appointment]);
-
-
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
-  const [inviteLink, setInviteLink] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleSubmit = async () => {
 
-    if (!form.patientName || !form.date || !form.startTime) {
-      setError('Patient name, date and time are required');
+    if (!form.patientName || !form.date || !form.startTime || (insurance && form.paymentAmount === '0.00')) {
+      setError('Patient name, date and time, copay are required');
       return;
     }
     setLoading(true);
@@ -88,7 +87,8 @@ const [form, setForm] = useState({
           patientEmail:  form.patientEmail,
           startsAt:      startsAt.toISOString(),
           endsAt:        endsAt.toISOString(),
-          paymentAmount: form.paymentAmount || null
+          paymentAmount: form.paymentAmount || null,
+          insurance: form.insurance
         })
       });
 
@@ -117,7 +117,7 @@ const [form, setForm] = useState({
     setEmailSent(false);        // ← add
     setCreatedAppointment(null); // ← add
     setError(null);
-    setForm({ patientName: '', patientEmail: '', date: '', startTime: '', duration: '50', paymentAmount: '' });
+    setForm({ patientName: '', patientEmail: '', date: '', startTime: '', duration: '50', paymentAmount: '', insurance: false});
     onClose();
   };
 
@@ -144,7 +144,10 @@ const [form, setForm] = useState({
     }
   };
 
-
+  const handleInsuranceToggle = () => {
+    setInsurance(!insurance);
+    setForm( { ...form, insurance: !insurance } )
+  }
 
   const handleSendEmail = async () => {
     try {
@@ -156,8 +159,8 @@ const [form, setForm] = useState({
     } catch (err) {
       console.error('Failed to send email:', err);
     }
-};
-
+  };
+  
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center">
       {/* Backdrop */}
@@ -304,16 +307,39 @@ const [form, setForm] = useState({
               </select>
             </div>
 
+            <div className="flex items-center justify-between border border-[rgba(0,80,40,0.18)] p-3">
+              <span className="text-[14px] font-mono text-[#7A9A7A]">
+                Use insurance for this appointment
+              </span>
+              <button
+                onClick={handleInsuranceToggle}
+                className={`relative w-[44px] h-[24px] border transition-all flex-shrink-0 ${
+                  form.insurance
+                    ? 'bg-[#007A40] border-[#007A40]'
+                    : 'bg-transparent border-[rgba(0,80,40,0.3)]'
+                }`}
+                aria-label={insurance ? 'Disable insurance' : 'Enable ensurance'}
+              >
+                <span
+                  className={`absolute top-[3px] w-[16px] h-[16px] bg-white transition-all ${
+                    form.insurance ? 'left-[24px]' : 'left-[3px]'
+                  }`}
+                />
+              </button>
+            </div>
+              
             {/* Copay */}
             <div className="flex flex-col gap-1.5">
+                
               <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">
-                copay amount (optional)
+                {insurance ? 'copay amount' : 'session fee'}
               </label>
               <div className="flex items-center border border-[rgba(0,80,40,0.18)] bg-[#EDE8DC] focus-within:border-[#007A40] transition-all">
                 <span className="px-3 text-sm text-[#7A9A7A] font-mono">$</span>
                 <input
                   type="number"
                   value={form.paymentAmount}
+                  required={insurance}  
                   onChange={e => setForm(f => ({ ...f, paymentAmount: e.target.value }))}
                   placeholder="0.00"
                   className="flex-1 px-2 py-2 bg-transparent text-sm text-[#1A2E1A] font-mono placeholder:text-[#7A9A7A] focus:outline-none"
