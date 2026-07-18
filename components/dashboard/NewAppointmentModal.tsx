@@ -7,10 +7,11 @@ interface Props {
   onClose:     () => void;
   onCreated:   (appointment: any) => void;
   appointment?: any;  // ← add for edit mode
+  providerNetworks: string[];
 }
 
 export default function NewAppointmentModal({ 
-isOpen, onClose, onCreated, appointment 
+isOpen, onClose, onCreated, appointment , providerNetworks
 }: Props) {
 
 const [form, setForm] = useState({
@@ -21,11 +22,13 @@ const [form, setForm] = useState({
   duration:      '50',
   paymentAmount: '0.00',
   insurance: false,
+  insuranceName: ''
 });
 
   const [emailSent, setEmailSent] = useState(false);
   const [createdAppointment, setCreatedAppointment] = useState<any>(null);
-  const [insurance, setInsurance] = useState<boolean>(false);
+  const [isInsurance, setInsurance] = useState<boolean>(false);
+  const [insuranceName, setInsuranceName] = useState<string>();
 
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
@@ -52,7 +55,9 @@ const [form, setForm] = useState({
           : '',
         duration:      '50',
         paymentAmount: appointment?.paymentAmount?.toString() || '',
-        insurance: appointment?.paymentType === 'insurance'
+        insurance: appointment?.paymentType === 'insurance',
+        insuranceName: appointment.insurance_carrier ?? null,
+
       });
     }
   }, [appointment]);
@@ -61,7 +66,7 @@ const [form, setForm] = useState({
 
   const handleSubmit = async () => {
 
-    if (!form.patientName || !form.date || !form.startTime || (insurance && form.paymentAmount === '0.00')) {
+    if (!form.patientName || !form.date || !form.startTime || (isInsurance && form.paymentAmount === '0.00')) {
       setError('Patient name, date and time, copay are required');
       return;
     }
@@ -88,7 +93,8 @@ const [form, setForm] = useState({
           startsAt:      startsAt.toISOString(),
           endsAt:        endsAt.toISOString(),
           paymentAmount: form.paymentAmount || null,
-          insurance: form.insurance
+          insurance: form.insurance,
+          insuranceName: form.insuranceName
         })
       });
 
@@ -117,7 +123,7 @@ const [form, setForm] = useState({
     setEmailSent(false);        // ← add
     setCreatedAppointment(null); // ← add
     setError(null);
-    setForm({ patientName: '', patientEmail: '', date: '', startTime: '', duration: '50', paymentAmount: '', insurance: false});
+    setForm({ patientName: '', patientEmail: '', date: '', startTime: '', duration: '50', paymentAmount: '', insurance: false, insuranceName: ''});
     onClose();
   };
 
@@ -145,8 +151,8 @@ const [form, setForm] = useState({
   };
 
   const handleInsuranceToggle = () => {
-    setInsurance(!insurance);
-    setForm( { ...form, insurance: !insurance } )
+    setInsurance(!isInsurance);
+    setForm( { ...form, insurance: !isInsurance } )
   }
 
   const handleSendEmail = async () => {
@@ -318,7 +324,7 @@ const [form, setForm] = useState({
                     ? 'bg-[#007A40] border-[#007A40]'
                     : 'bg-transparent border-[rgba(0,80,40,0.3)]'
                 }`}
-                aria-label={insurance ? 'Disable insurance' : 'Enable ensurance'}
+                aria-label={isInsurance ? 'Disable insurance' : 'Enable ensurance'}
               >
                 <span
                   className={`absolute top-[3px] w-[16px] h-[16px] bg-white transition-all ${
@@ -330,22 +336,38 @@ const [form, setForm] = useState({
               
             {/* Copay */}
             <div className="flex flex-col gap-1.5">
-                
               <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">
-                {insurance ? 'copay amount' : 'session fee'}
+                {isInsurance ? 'copay amount' : 'session fee'}
               </label>
               <div className="flex items-center border border-[rgba(0,80,40,0.18)] bg-[#EDE8DC] focus-within:border-[#007A40] transition-all">
                 <span className="px-3 text-sm text-[#7A9A7A] font-mono">$</span>
                 <input
                   type="number"
                   value={form.paymentAmount}
-                  required={insurance}  
+                  required={isInsurance}  
                   onChange={e => setForm(f => ({ ...f, paymentAmount: e.target.value }))}
                   placeholder="0.00"
                   className="flex-1 px-2 py-2 bg-transparent text-sm text-[#1A2E1A] font-mono placeholder:text-[#7A9A7A] focus:outline-none"
                 />
               </div>
-            </div>
+              </div>
+              {isInsurance && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">
+                    insurance carrier
+                  </label>
+                  <select
+                    value={insuranceName}
+                    onChange={e => setInsuranceName(e.target.value)}
+                    className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] focus:outline-none focus:border-[#007A40]"
+                  >
+                    <option value="">Select carrier...</option>
+                    {providerNetworks.map(network => (
+                      <option key={network} value={network}>{network}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
             {/* Error */}
             {error && (

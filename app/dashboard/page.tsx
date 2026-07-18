@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import TodayQueue from '@/components/dashboard/TodayQueue';
 import UpNext from '@/components/dashboard/UpNext';
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
+import { profile } from 'console';
 
 export type Appointment = {
   id:            string;
@@ -29,46 +30,42 @@ export default function DashboardPage() {
 
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null);
 
+  const [providerNetworks, setProviderNetworks] = useState<string[]>([]);
 
-// 1. Wrap in useCallback so the function reference NEVER changes
-const fetchToday = useCallback(async () => {
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/today`, {
-      credentials: 'include'
-    });
-    const data = await res.json();
-    
-    if (data.success) {
-      const appts = data.appointments.map((a: any) => ({
-        ...a,
-        startsAt: new Date(a.startsAt),
-        endsAt:   new Date(a.endsAt),
-      }));
-      
-      setAppointments(appts);
-      
-      // 💡 Functional state update bypasses the stale closure trap entirely
-      setSelected((prevSelected: any) => {
-        if (!prevSelected && appts.length > 0) {
-          return appts[0];
-        }
-        return prevSelected;
+
+  // 1. Wrap in useCallback so the function reference NEVER changes
+  const fetchToday = useCallback(async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/today`, {
+        credentials: 'include'
       });
+      const data = await res.json();
+      
+      if (data.success) {
+        const appts = data.appointments.map((a: any) => ({
+          ...a,
+          startsAt: new Date(a.startsAt),
+          endsAt:   new Date(a.endsAt),
+        }));
+        
+        setAppointments(appts);
+        
+        // 💡 Functional state update bypasses the stale closure trap entirely
+        setSelected((prevSelected: any) => {
+          if (!prevSelected && appts.length > 0) {
+            return appts[0];
+          }
+          return prevSelected;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch appointments:', err);
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error('Failed to fetch appointments:', err);
-  } finally {
-    setLoading(false);
-  }
-}, []); // Empty array keeps this function perfectly stable
+  }, []); // Empty array keeps this function perfectly stable
 
   
-  // On mount
-  useEffect(() => {
-    fetchToday();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const handleSelect = (appt: Appointment) => {
     setSelected(appt);
     setMobileView('detail');
@@ -88,6 +85,29 @@ const fetchToday = useCallback(async () => {
     setEditingAppt(null);
   };
 
+  
+
+  const fetchProviders = useCallback(async () => {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile/public`, {
+        credentials: 'include'
+      });
+    const data = await res.json();
+    const { profile } = data;
+    console.log('Profile', profile);
+    setProviderNetworks(profile.insurance_networks ?? []);
+  }, []);
+  
+  // On mount
+  useEffect(() => {
+    fetchToday();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect( () => {
+    fetchProviders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <>
       <NewAppointmentModal
@@ -95,6 +115,7 @@ const fetchToday = useCallback(async () => {
         onClose={() => { setShowModal(false); setEditingAppt(null); }}
         onCreated={handleCreated}
         appointment={editingAppt || undefined}
+        providerNetworks={providerNetworks}
       />
 
       <div className="flex h-full">

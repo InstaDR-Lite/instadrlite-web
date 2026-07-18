@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Appointment } from '@/app/dashboard/page';
 import AppointmentCard from '@/components/dashboard/AppointmentCard';
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
@@ -32,6 +32,8 @@ export default function CalendarPage() {
   const [showModal, setShowModal] = useState(false);
   
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null);
+  const [providerNetworks, setProviderNetworks] = useState<string[]>([]);
+
   const days = getWeekDays(weekStart);
 
   const fetchUpcoming = async () => {
@@ -54,6 +56,23 @@ export default function CalendarPage() {
   };
 
   useEffect(() => { fetchUpcoming(); }, []);
+
+  const fetchProviders = useCallback(async () => {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile/public`, {
+        credentials: 'include'
+      });
+    const data = await res.json();
+    const { profile } = data;
+    console.log('Profile', profile);
+    setProviderNetworks(profile.insurance_networks ?? []);
+  }, []);
+    
+  
+  useEffect(() => {
+    fetchProviders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
 
   const apptsByDay = (day: Date) =>
     appointments.filter(a => {
@@ -89,6 +108,7 @@ export default function CalendarPage() {
         onClose={() => { setShowModal(false); setEditingAppt(null); }}
         onCreated={fetchUpcoming}
         appointment={editingAppt || undefined}
+        providerNetworks={providerNetworks}
       />
       <div className="flex flex-col h-full">
 
