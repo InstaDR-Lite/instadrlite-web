@@ -16,6 +16,7 @@ interface ProviderProfile {
   session_duration: number;
   session_cost: number;
   slot_duration: number;
+  insurance_networks?: string[];
 }
 
 interface Provider {
@@ -47,13 +48,19 @@ export default function ProviderRoomPage() {
   const [pageView, setPageView] = useState<PageView>('profile');
   const [slots, setSlots] = useState<any[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<any>(null);
-  const [bookingForm, setBookingForm] = useState({ name: '', email: '' });
+  
   const [booking, setBooking] = useState(false);
   const [bookedAppt, setBookedAppt] = useState<any>(null);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
   
-  
+  const [bookingForm, setBookingForm] = useState({
+    name: '',
+    email: '',
+    payment_type: 'self_pay',
+    insurance_carrier: '',
+  });
+    
   const fetchSlots = async (offset = 0) => {
     setSlotsLoading(true);
     const res  = await fetch(
@@ -88,7 +95,9 @@ export default function ProviderRoomPage() {
           slug,
           patientName: bookingForm.name,
           patientEmail: bookingForm.email,
-          datetime: selectedSlot.datetime
+          datetime: selectedSlot.datetime,
+          payment_type: bookingForm.payment_type,
+          insurance_carrier: bookingForm.insurance_carrier || null,
         })
       });
       const data = await res.json();
@@ -307,13 +316,64 @@ export default function ProviderRoomPage() {
               className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all"
             />
           </div>
+          {provider?.profile?.accepts_insurance && (
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">payment type</label>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="payment_type"
+                    value="self_pay"
+                    checked={bookingForm.payment_type === 'self_pay'}
+                    onChange={() => setBookingForm(f => ({ ...f, payment_type: 'self_pay', insurance_carrier: '' }))}
+                    className="accent-[#007A40]"
+                  />
+                  <span className="font-mono text-[13px] text-[#1A2E1A]">Self-pay</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="payment_type"
+                    value="insurance"
+                    checked={bookingForm.payment_type === 'insurance'}
+                    onChange={() => setBookingForm(f => ({ ...f, payment_type: 'insurance' }))}
+                    className="accent-[#007A40]"
+                  />
+                  <span className="font-mono text-[13px] text-[#1A2E1A]">Insurance</span>
+                </label>
+              </div>
+            </div>
+          )}
+          {/* Carrier dropdown — only when insurance selected */}
+          {bookingForm.payment_type === 'insurance' && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">insurance carrier</label>
+              <select
+                value={bookingForm.insurance_carrier}
+                onChange={e => setBookingForm(f => ({ ...f, insurance_carrier: e.target.value }))}
+                className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] focus:outline-none focus:border-[#007A40]"
+              >
+                <option value="">Select carrier...</option>
+                {provider.profile.insurance_networks?.map((network: string) => (
+                  <option key={network} value={network}>{network}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
-          {provider?.profile?.session_cost && (
+          {/* Fee line — replace existing session fee block */}
+          {bookingForm.payment_type === 'insurance' ? (
+            <div className="text-[11px] text-[#7A9A7A] font-mono p-3 border border-[rgba(0,80,40,0.18)] bg-[#EDE8DC]">
+              // copay collected at session start — amount set by provider
+            </div>
+          ) : provider?.profile?.session_cost ? (
             <div className="text-[11px] text-[#7A9A7A] font-mono p-3 border border-[rgba(0,80,40,0.18)] bg-[#EDE8DC]">
               // session fee: <span className="text-[#1A2E1A]">${provider.profile.session_cost}</span>
               {' '}— collected at session start
             </div>
-          )}
+          ) : null}
+          
 
           {error && (
             <div className="text-[11px] text-[#CC2200] font-mono">// error: {error}</div>
@@ -460,15 +520,26 @@ export default function ProviderRoomPage() {
             </div>
             
             {(provider.profile.session_cost || provider.profile.slot_duration) && (
-            <div className="flex items-center gap-4 text-[11px] font-mono text-[#7A9A7A]">
-              {provider.profile.session_cost && (
-                <span>// session: <span className="text-[#1A2E1A]">${provider.profile.session_cost}</span></span>
-              )}
-              {provider.profile.slot_duration && (
-                <span>// duration: <span className="text-[#1A2E1A]">{provider.profile.slot_duration} min</span></span>
-              )}
-            </div>
-          )}
+              <div className="flex items-center gap-4 text-[11px] font-mono text-[#7A9A7A]">
+                {provider.profile.session_cost && (
+                  <span>// session: <span className="text-[#1A2E1A]">${provider.profile.session_cost}</span></span>
+                )}
+                {provider.profile.slot_duration && (
+                  <span>// duration: <span className="text-[#1A2E1A]">{provider.profile.slot_duration} min</span></span>
+                )}
+              </div>
+            )}
+
+            {(provider.profile.accepts_insurance && 
+              provider.profile.insurance_networks!.length > 0) && (
+              <div className="flex gap-2 flex-wrap">
+                <span className="font-mono text-[11px] text-[#7A9A7A]">// insurance:</span>
+                <span className="font-mono text-[11px] text-[#3D5C3D]">
+                  {provider.profile.insurance_networks!.join(', ')}
+                </span>
+              </div>
+            )}
+          
             
 
           {provider.profile.certifications?.length > 0 && (
