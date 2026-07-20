@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import TodayQueue from '@/components/dashboard/TodayQueue';
 import UpNext from '@/components/dashboard/UpNext';
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
-import { profile } from 'console';
+
 
 export type Appointment = {
   id:            string;

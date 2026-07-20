@@ -31,6 +31,13 @@ interface Provider {
 
 type PageView = 'profile' | 'booking' | 'confirm' | 'booked';
 
+const initialState = {
+  name: '',
+  email: '',
+  payment_type: 'self_pay',
+  insurance_carrier: '',
+}
+
 export default function ProviderRoomPage() {
   const params = useParams();
   const router = useRouter();
@@ -54,12 +61,7 @@ export default function ProviderRoomPage() {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
   
-  const [bookingForm, setBookingForm] = useState({
-    name: '',
-    email: '',
-    payment_type: 'self_pay',
-    insurance_carrier: '',
-  });
+  const [bookingForm, setBookingForm] = useState(initialState);
     
   const fetchSlots = async (offset = 0) => {
     setSlotsLoading(true);
@@ -355,7 +357,7 @@ export default function ProviderRoomPage() {
                 className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] focus:outline-none focus:border-[#007A40]"
               >
                 <option value="">Select carrier...</option>
-                {provider.profile.insurance_networks?.map((network: string) => (
+                {provider?.profile?.insurance_networks?.map((network: string) => (
                   <option key={network} value={network}>{network}</option>
                 ))}
               </select>
@@ -423,7 +425,7 @@ export default function ProviderRoomPage() {
             onClick={() => {
               setPageView('profile');
               setSelectedSlot(null);
-              setBookingForm({ name: '', email: '' });
+              setBookingForm(initialState);
               setBookedAppt(null);
             }}
             className="w-full py-3 border border-[rgba(0,80,40,0.18)] text-[10px] tracking-widest uppercase text-[#7A9A7A] hover:text-[#1A2E1A] transition-all"
