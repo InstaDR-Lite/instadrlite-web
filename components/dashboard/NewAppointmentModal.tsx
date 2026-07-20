@@ -335,22 +335,8 @@ const [form, setForm] = useState({
             </div>
               
             {/* Copay */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">
-                {isInsurance ? 'copay amount' : 'session fee'}
-              </label>
-              <div className="flex items-center border border-[rgba(0,80,40,0.18)] bg-[#EDE8DC] focus-within:border-[#007A40] transition-all">
-                <span className="px-3 text-sm text-[#7A9A7A] font-mono">$</span>
-                <input
-                  type="number"
-                  value={form.paymentAmount}
-                  required={isInsurance}  
-                  onChange={e => setForm(f => ({ ...f, paymentAmount: e.target.value }))}
-                  placeholder="0.00"
-                  className="flex-1 px-2 py-2 bg-transparent text-sm text-[#1A2E1A] font-mono placeholder:text-[#7A9A7A] focus:outline-none"
-                />
-              </div>
-              </div>
+            <div className="flex flex-col gap-3">
+              
               {isInsurance && (
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">
@@ -360,14 +346,31 @@ const [form, setForm] = useState({
                     value={insuranceName}
                     onChange={e => setInsuranceName(e.target.value)}
                     className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] focus:outline-none focus:border-[#007A40]"
-                  >
+                    >
                     <option value="">Select carrier...</option>
                     {providerNetworks.map(network => (
                       <option key={network} value={network}>{network}</option>
                     ))}
                   </select>
                 </div>
-              )}
+                )}
+                <div>
+                 <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">
+                    {isInsurance ? 'copay amount' : 'session fee'}
+                  </label>
+                  <div className="flex items-center border border-[rgba(0,80,40,0.18)] bg-[#EDE8DC] focus-within:border-[#007A40] transition-all">
+                    <span className="px-3 text-sm text-[#7A9A7A] font-mono">$</span>
+                    <input
+                      type="number"
+                      value={form.paymentAmount}
+                      required={isInsurance}  
+                      onChange={e => setForm(f => ({ ...f, paymentAmount: e.target.value }))}
+                      placeholder="0.00"
+                      className="flex-1 px-2 py-2 bg-transparent text-sm text-[#1A2E1A] font-mono placeholder:text-[#7A9A7A] focus:outline-none"
+                    />
+                  </div>
+                </div>  
+              </div>
 
             {/* Error */}
             {error && (
