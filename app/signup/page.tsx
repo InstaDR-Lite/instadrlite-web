@@ -45,8 +45,7 @@ function SignupInner() {
    * page. If there's an error during the process, it catches it and displays the error message.   
    * @returns 
   */
- const handleSignup = async () => {
-
+  const handleSignup = async () => {
     if (form.password !== form.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -55,31 +54,36 @@ function SignupInner() {
     setError(null);
 
     try {
+      const claimedSlug = localStorage.getItem('instaroom:claimed_slug');
+      console.log('Claimed Slug', claimedSlug);
+      
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/signup`, {
-        method:      'POST',
-        headers:     { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body:        JSON.stringify({
-          name:     form.name,
-          email:    form.email,
-          password: form.password
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          slug: claimedSlug ?? null, // pass through if exists
         })
       });
 
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
-      
-      router.push('/onboarding'); 
+
+      localStorage.removeItem('instaroom:claimed_slug'); // clean up
+      router.push('/onboarding');
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
- };
+  };
   
   const handleGoogle = async () => {
-
-    const res  = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/login`);
+    const claimedSlug = localStorage.getItem('instaroom:claimed_slug');
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/google/login${claimedSlug ? `?slug=${claimedSlug}` : ''}`);
     const data = await res.json();
     window.location.href = data.url;
   };

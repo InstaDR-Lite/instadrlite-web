@@ -15,13 +15,6 @@ const CREDENTIALS_BY_TYPE: Record<string, string[]> = {
   np:         ['NP', 'RN', 'PA', 'MD', 'DO', 'Other'],
 };
 
-const PLACEHOLDERS: Record<string, string> = {
-  doctor: "dr.lewis",
-  therapist: "lewis.therapy",
-  coach: "lewis.coaching",
-  nurse_practitioner: "lewis.np", // or whatever your 4 exact provider keys are
-};
-
 export default function OnboardingPage() {
   return (
     <Suspense fallback={null}>
@@ -46,7 +39,6 @@ function OnboardingInner() {
     npi:            '',
     specialty:      '',
     licensedStates: [] as string[],
-    slug: '',
     paymentMode:    '' 
   });
   
@@ -390,25 +382,6 @@ function OnboardingInner() {
                       {s}
                     </button>
                   ))}
-                </div>
-              </div>
-
-              {/* Room slug */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">
-                  your room link
-                </label>
-                <div className="flex items-center border border-[rgba(0,80,40,0.18)] bg-[#EDE8DC] focus-within:border-[#007A40] transition-all">
-                  <span className="px-3 text-[11px] text-[#7A9A7A] font-mono border-r border-[rgba(0,80,40,0.18)]">
-                    instaroom.link/
-                  </span>
-                  <input
-                    type="text"
-                    value={form.slug}
-                    onChange={e => setForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9.-]/g, '') }))}
-                    placeholder={PLACEHOLDERS[form.providerType] || "alisa-lewis"}
-                    className="flex-1 px-3 py-2 bg-transparent text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none"
-                  />
                 </div>
               </div>
 
