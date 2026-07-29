@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Appointment } from '@/app/dashboard/page';
+import { Appointment } from '@/app/(app)/dashboard/page';
 import AppointmentCard from '@/components/dashboard/AppointmentCard';
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
 

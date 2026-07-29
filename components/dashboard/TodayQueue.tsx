@@ -1,4 +1,4 @@
-import { Appointment } from '@/app/dashboard/page';
+import { Appointment } from '@/app/(app)/dashboard/page';
 import AppointmentCard from './AppointmentCard';
 
 interface Props {

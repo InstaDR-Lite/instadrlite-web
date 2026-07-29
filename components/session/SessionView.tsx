@@ -1,7 +1,7 @@
 'use client';
 
 
-import { Appointment } from '@/app/dashboard/page';
+import { Appointment } from '@/app/(app)/dashboard/page';
 import { VideoSession } from '@/hooks/useVideoSession';
 import { RefObject, useEffect, useState } from 'react';
 import { RemoteVideo } from './RemoteVideo';

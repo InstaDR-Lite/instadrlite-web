@@ -1,5 +1,5 @@
 
-import { Appointment } from '@/app/dashboard/page';
+import { Appointment } from '@/app/(app)/dashboard/page';
 interface Props {
   appointment: Appointment;
   isActive:    boolean;

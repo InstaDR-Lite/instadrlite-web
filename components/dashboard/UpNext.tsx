@@ -1,7 +1,7 @@
 'use client';
 
 
-import { Appointment } from '@/app/dashboard/page';
+import { Appointment } from '@/app/(app)/dashboard/page';
 import { useVideoSession } from '@/hooks/useVideoSession';
 import SessionView from '../session/SessionView';
 import AuditPanel, { CptCode } from '../callLogDrawer/AuditPanel';
