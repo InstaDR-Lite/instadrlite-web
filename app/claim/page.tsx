@@ -33,8 +33,8 @@ function ClaimRoomModal({ onClaim }: { onClaim: (slug: string) => void }) {
             <div className="text-lg font-semibold text-[#1A2E1A]">
               Claim your room URL
             </div>
-            <p className="text-[11px] text-[#7A9A7A] font-mono mt-1">
-              This is your permanent address. Share it with patients — it never changes.
+            <p className="text-[14px] text-[#7A9A7A] font-mono mt-1">
+              This is your permanent room URL. Share it from anywhere — it never changes.
             </p>
           </div>
 

@@ -24,7 +24,7 @@ function SignupInner() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [promoCode, setPromoCode] = useState('');
-  
+  const [showPassword, setShowPassword] = useState(false);
   const plan = searchParams.get('plan') || 'monthly';
   
   useEffect(() => {
@@ -36,6 +36,15 @@ function SignupInner() {
       localStorage.setItem('pending_promo_code', promoCode);
     }
   }, [plan, promoCode]);
+  
+
+   // In signup page on mount
+  useEffect(() => {
+    const slug = localStorage.getItem('instaroom:claimed_slug');
+      if (!slug) {
+        router.push('/claim');
+      }
+  }, [router]);
   
   /**
    * Handles the signup process for new users. It first checks if the password and confirm password fields match. 
@@ -56,7 +65,7 @@ function SignupInner() {
     try {
       const claimedSlug = localStorage.getItem('instaroom:claimed_slug');
       console.log('Claimed Slug', claimedSlug);
-      
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -135,11 +144,10 @@ function SignupInner() {
             <div className="flex-1 h-px bg-[rgba(0,80,40,0.12)]" />
           </div>
 
+         {/* Name and email stay mapped */}
           {[
-            { key: 'name',            type: 'text',     placeholder: 'Full name' },
-            { key: 'email',           type: 'email',    placeholder: 'Email' },
-            { key: 'password',        type: 'password', placeholder: 'Password' },
-            { key: 'confirmPassword', type: 'password', placeholder: 'Confirm password' }
+            { key: 'name',  type: 'text',  placeholder: 'Full name' },
+            { key: 'email', type: 'email', placeholder: 'Email' },
           ].map(f => (
             <input
               key={f.key}
@@ -149,6 +157,26 @@ function SignupInner() {
               onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
               className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all"
             />
+          ))}
+
+          {/* Password fields with toggle */}
+          {(['password', 'confirmPassword'] as const).map(key => (
+            <div key={key} className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder={key === 'password' ? 'Password' : 'Confirm password'}
+                value={form[key]}
+                onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+                className="w-full px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(p => !p)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7A9A7A] hover:text-[#1A2E1A] transition-all font-mono text-[11px]"
+              >
+                {showPassword ? '●' : '○'}
+              </button>
+            </div>
           ))}
 
           {error && (

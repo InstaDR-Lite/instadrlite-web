@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
   const [form,    setForm]    = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     setLoading(true);
@@ -21,7 +23,7 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
-      router.push('/dashboard');
+      router.push('/');
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -76,13 +78,22 @@ export default function LoginPage() {
             onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
             className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all"
           />
-          <input
-            type="password"
-            placeholder="Password"
-            value={form.password}
-            onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-            className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all"
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={form.password}
+              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+              placeholder="Password"
+              className="w-full px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(p => !p)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7A9A7A] hover:text-[#1A2E1A] transition-all"
+            >
+              {showPassword ? '●' : '○'}
+            </button>
+          </div>
 
           {error && (
             <div className="text-[11px] text-[#CC2200] font-mono">
@@ -103,7 +114,10 @@ export default function LoginPage() {
 
           <div className="text-center text-[11px] text-[#7A9A7A] tracking-wide">
             New provider?{' '}
-            <a href="/signup" className="text-[#007A40] hover:underline">Create account</a>
+            <Link
+              href="/signup"
+              className="text-[#007A40] hover:underline">Create account
+            </Link>
           </div>
         </div>
       </div>

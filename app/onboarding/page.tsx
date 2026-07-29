@@ -31,6 +31,8 @@ function OnboardingInner() {
   const [error, setError] = useState<string | null>(null);
   const [isAuthorizing, setIsAuthorizing] = useState(true);
   const [showPlanModal, setShowPlanModal] = useState(false);
+  const [provider, setProvider] = useState<any>();
+  
   const searchParams = useSearchParams();
   
   const [form, setForm] = useState({
@@ -51,6 +53,23 @@ function OnboardingInner() {
         ? f.licensedStates.filter(s => s !== state)
         : [...f.licensedStates, state]
     }));
+  };
+
+  // When provider clicks Next on step 0 (provider type)
+  const handleNext = async () => {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/onboarding/step`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ step: step + 1 })
+      });
+      setStep(prev => prev + 1);
+    } catch (err) {
+      console.error('[Onboarding] Failed to save step:', err);
+      // Still advance — don't block on this
+      setStep(prev => prev + 1);
+    }
   };
 
   const handleComplete = async () => {
@@ -78,6 +97,33 @@ function OnboardingInner() {
     }
   };
 
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+      credentials: 'include'
+    })
+      .then(r => r.json())
+      .then(({ provider }) => {
+        if (provider) {
+          setProvider(provider); 
+
+          // Populate form from existing provider data
+          setForm(f => ({
+            ...f,
+            providerType:   provider.provider_type ?? '',
+            credentials:    provider.credentials ?? '',
+            npi:            provider.npi ?? '',
+            specialty:      provider.specialty ?? '',
+            licensedStates: provider.licensed_states ?? [],
+            paymentMode:    provider.payment_mode ?? '',
+          }))
+            
+          if (!provider.onboarding_complete) {
+            setStep(provider.onboarding_step);
+          }
+        }
+      });
+  }, []);
+
 
   /**
    * This useEffect is the gatekeeper to the entire onboarding flow. It checks 
@@ -90,7 +136,12 @@ function OnboardingInner() {
   useEffect(() => {
 
     const evaluateAccessPipeline = async () => {
-
+    
+      if (!provider) {
+        setIsAuthorizing(false);
+        return;
+      } 
+    
       // 1. Check if they just returned from a successful Stripe checkout session
       const urlParams = new URLSearchParams(window.location.search);
       const isJustSubscribed = urlParams.get('subscribed') === 'true';
@@ -136,8 +187,7 @@ function OnboardingInner() {
       }
 
       // 3. If neither condition is met, redirect to Stripe checkout
-      console.log("🚨 No valid promo or Stripe session found. Redirecting to Stripe checkout...");
-
+      // if a plan was selected and the room was claimed 
       const isPlanSelected = localStorage.getItem('selectedplan');
       if (isPlanSelected) {
         // Get checkout URL immediately after signup
@@ -150,16 +200,20 @@ function OnboardingInner() {
         
         const checkoutData = await checkoutRes.json();
         window.location.href = checkoutData.url;  // → Stripe Checkout
-      } else {
-        console.log("No plan selected in localStorage. Redirecting to signup page.");
+      }
+
+      // if we are redirected on login here because onboarding was not completed;
+      // check if the payment step was completed.
+      if (provider?.subscription_status !== 'active') {
+        console.log("No plan selected. Redirecting to select plan.");
         setShowPlanModal(true);
         setIsAuthorizing(false); // Allow the modal to render so they can select a plan
         return;
-      };
+      }
     }
 
     evaluateAccessPipeline();
-  }, []);
+  }, [provider, provider?.subscription_status]);
   
 
   useEffect(() => {
@@ -187,7 +241,7 @@ function OnboardingInner() {
     verifySubscription();
   }, [searchParams, router]);
 
-
+    
   // While the useEffect is talking to the DB/Stripe, show a clean, high-end loading state
   if (isAuthorizing) {
     return (
@@ -229,7 +283,9 @@ function OnboardingInner() {
         <div className="px-6 py-4 border-b border-[rgba(0,80,40,0.18)] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="border border-[rgba(0,80,40,0.30)] px-2 py-0.5 text-[#007A40] text-xs font-bold">IR</span>
-            <span className="text-sm tracking-widest uppercase text-[#1A2E1A]">InstaRoom</span>
+            <span className="text-[11px] font-mono text-[#007A40]">
+              instaroom.link/{localStorage.getItem('instaroom:claimed_slug')}
+            </span>
           </div>
           <span className="text-[10px] text-[#7A9A7A] tracking-widest uppercase">
             step {step + 1} / 4
@@ -258,7 +314,7 @@ function OnboardingInner() {
                     key={t.value}
                     onClick={() => {
                       setForm(f => ({ ...f, providerType: t.value }));
-                      setStep(1);
+                      handleNext();
                     }}
                     className="w-full p-3 border border-[rgba(0,80,40,0.18)] text-left hover:border-[#007A40] hover:bg-[rgba(0,122,64,0.05)] transition-all"
                   >
@@ -282,7 +338,8 @@ function OnboardingInner() {
                 <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">
                   Clinical identity
                 </div>
-                <div className="text-lg font-semibold text-[#1A2E1A]">Your credentials</div>
+                <div className="text-lg font-semibold text-[#1A2E1A]">Your public profile</div>
+                <p className="text-[11px] text-[#7A9A7A] font-mono mt-1">{`Shown on your public room available at https://instaroom.link/${provider?.slug}`}</p>
               </div>
 
               {/* Credentials */}
@@ -339,7 +396,7 @@ function OnboardingInner() {
                   ← back
                 </button>
               <button
-                onClick={() => setStep(2)}
+                onClick={handleNext}
                 disabled={!form.credentials}
                 className={`w-full py-3 text-xs tracking-widest uppercase transition-all ${
                   form.credentials
@@ -395,7 +452,7 @@ function OnboardingInner() {
                   ← back
                 </button>
                 <button
-                onClick={() => setStep(3)}
+                onClick={handleNext}
                 disabled={!form.credentials}
                 className={`w-full py-3 text-xs tracking-widest uppercase transition-all ${
                   form.credentials

@@ -93,7 +93,6 @@ export default function DashboardPage() {
       });
     const data = await res.json();
     const { profile } = data;
-    console.log('Profile', profile);
     setProviderNetworks(profile.insurance_networks ?? []);
   }, []);
   
