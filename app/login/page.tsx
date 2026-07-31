@@ -94,6 +94,12 @@ export default function LoginPage() {
               {showPassword ? '●' : '○'}
             </button>
           </div>
+          <Link 
+            href='/forgot-password' 
+            className="text-[10px] font-mono text-[#7A9A7A] hover:text-[#007A40] transition-all self-end"
+          >
+            Forgot password?
+          </Link>
 
           {error && (
             <div className="text-[11px] text-[#CC2200] font-mono">
