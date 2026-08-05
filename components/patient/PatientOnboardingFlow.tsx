@@ -250,7 +250,7 @@ export default function PatientOnboardingFlow({ appointment, onComplete, onError
     );
   }
 
-  if (step === 'copay') {
+  if (step === 'copay' && Number(appointment?.paymentAmount) > 0) {
     return (
       <Shell providerName={appointment?.provider.name}>
         <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">copay required</div>
