@@ -140,7 +140,7 @@ export default function PatientOnboardingFlow({ appointment, onComplete, onError
   };
 
   const checkForCopay = async () => {
-    const needsCopay = appointment?.paymentAmount && appointment?.paymentStatus !== 'paid';
+    const needsCopay = appointment?.paymentAmount && appointment?.paymentStatus !== 'paid' && Number(appointment?.paymentAmount) > 0;
     if (needsCopay) {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/payment-intent`, {
