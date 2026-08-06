@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import TodayQueue from '@/components/dashboard/TodayQueue';
 import UpNext from '@/components/dashboard/UpNext';
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
+import WelcomeModal from '@/components/welcomeModal/WelcomeModal';
 
 
 export type Appointment = {
@@ -30,6 +31,8 @@ export default function DashboardPage() {
 
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null);
 
+  const [provider, setProvider] = useState<any>(null);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [providerNetworks, setProviderNetworks] = useState<string[]>([]);
 
 
@@ -85,9 +88,28 @@ export default function DashboardPage() {
     setEditingAppt(null);
   };
 
-  
+  useEffect(() => {
+  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+    credentials: 'include'
+  })
+    .then(r => r.json())
+    .then(({ provider }) => {
+      setProvider(provider);
+      if (provider && !provider.has_seen_welcome) {
+        setShowWelcome(true);
+      }
+    });
+}, []);
 
-  const fetchProviders = useCallback(async () => {
+  const handleDismissWelcome = async () => {
+    setShowWelcome(false);
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/welcome-seen`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  };
+
+  const fetchPublicProfile = useCallback(async () => {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile/public`, {
         credentials: 'include'
       });
@@ -103,7 +125,7 @@ export default function DashboardPage() {
   }, []);
 
   useEffect( () => {
-    fetchProviders();
+    fetchPublicProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -116,6 +138,18 @@ export default function DashboardPage() {
         appointment={editingAppt || undefined}
         providerNetworks={providerNetworks}
       />
+
+      {showWelcome && provider && (
+        <WelcomeModal
+          provider={provider}
+          onDismiss={handleDismissWelcome}
+          onOpenSettings={(tab: string) => {
+            handleDismissWelcome();
+            // Navigate to settings page with the specified tab
+            window.location.href = `/settings?tab=${tab}`;
+          }}
+        />
+      )}
 
       <div className="flex h-full">
         {/* Left */}
