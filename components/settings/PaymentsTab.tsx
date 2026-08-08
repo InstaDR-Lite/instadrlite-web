@@ -71,8 +71,6 @@ function PaymentsInner() {
   const isByos      = provider?.payment_mode === 'byos';
   const isManaged   = provider?.payment_mode === 'managed';
 
-  console.log('Provider data:', isConnected, isByos, isManaged, provider);
-
   return (
     <>
       <Script 
@@ -145,7 +143,6 @@ function PaymentsInner() {
           </div>
 
           {/* PayPal option */}
-         {/* PayPal option */}
           <div className={`p-3 border transition-all ${
             provider?.paypal_merchant_id
               ? 'border-[#007A40] bg-[rgba(0,122,64,0.05)]'

@@ -12,7 +12,6 @@ export default function Home() {
     })
       .then(r => r.json())
       .then(({ provider }) => {
-        console.log('Provider', provider);
         if (!provider) {
           router.push('/login');
         } else if (!provider.onboarding_complete) {
