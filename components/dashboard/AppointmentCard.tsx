@@ -62,11 +62,13 @@ export default function AppointmentCard({ appointment, isActive, onClick, onEdit
           </button>
         )}
         <span>
-          {appointment.paymentStatus === 'paid'
+          {!appointment.paymentAmount || appointment.paymentAmount === 0
+            ? '💳 No fee'
+            : appointment.paymentStatus === 'paid'
             ? '💳 Paid'
             : appointment.paymentStatus === 'authenticating'
             ? '💳 Auth...'
-            : '💳 Unpaid'}
+            : `💳 $${appointment.paymentAmount} due`}
         </span>
       </div>
     </div>

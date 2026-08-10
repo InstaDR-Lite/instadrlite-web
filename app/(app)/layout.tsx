@@ -5,6 +5,8 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Video, CalendarDays, ScrollText, Settings, LogOut } from 'lucide-react';
 import SettingsModal from '@/components/settings/SettingsModal';
 import { Suspense } from 'react';
+import TopNav from '@/components/layout/TopNav';
+import { DashboardProvider } from '@/context/DashboardContext';
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 
@@ -65,7 +67,6 @@ function AccountPopup({
     router.push('/login');
   };
 
-  const initial = provider?.name?.[0]?.toUpperCase() ?? 'P';
 
   return (
     <div
@@ -137,33 +138,7 @@ function Sidebar({
                       bg-[#edf1f7] border-r border-[rgba(0,80,40,0.18)]">
 
 
-      {/* Top navbar */}
-      <div className="fixed top-0 left-0 right-0 h-[54px] z-40
-                      flex items-center justify-between px-6
-                      bg-[#edf1f7] border-b border-[rgba(0,80,40,0.18)]">
-        
-        {/* Logo + wordmark */}
-        <div className="flex items-center gap-3">
-          <span className="border border-[rgba(0,80,40,0.30)] px-2 py-0.5
-                          text-[#007A40] text-[10px] font-bold tracking-wider">
-            IR
-          </span>
-          <span className="text-sm tracking-widest uppercase text-[#1A2E1A] font-mono">
-            InstaRoom
-          </span>
-        </div>
-
-        {/* Right — sys:online + provider name */}
-        <div className="flex gap-2">
-          <div className="flex items-center gap-2 text-[10px] tracking-widest uppercase text-[#7A9A7A] font-mono">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#007A40] animate-pulse" />
-            sys:online
-          </div>
-          <span className="text-[10px] tracking-widest uppercase text-[#3D5C3D] font-mono">
-            {provider?.name}
-          </span>
-        </div>
-      </div>
+      <TopNav provider={provider}/>
 
       {/* Nav items */}
       <nav className="flex flex-col items-center gap-4 flex-1">
@@ -223,9 +198,11 @@ export default function DashboardLayoutSidebar({
 }) {
   return (
     <Suspense fallback={null}>
-      <DashboardLayoutSidebarInner>
-        {children}
-      </DashboardLayoutSidebarInner>
+      <DashboardProvider>
+        <DashboardLayoutSidebarInner>
+          {children}
+        </DashboardLayoutSidebarInner>
+      </DashboardProvider>
     </Suspense>
   );
 }
@@ -294,106 +271,3 @@ function DashboardLayoutSidebarInner({
     </div>
   );
 }
-
-// import TopNav from '@/components/layout/TopNav';
-
-// export default function CalendarLayout({ children }: { children: React.ReactNode }) {
-//   return (
-//     <div className="min-h-screen bg-[#edf1f7]">
-//       <TopNav />
-//       <main className="pt-[88px] h-screen">
-//         {children}
-//       </main>
-//     </div>
-//   );
-// }
-
-
-// 'use client';
-// import { useEffect, useState } from 'react';
-// import { useRouter, useSearchParams } from 'next/navigation';
-// import TopNav from '@/components/layout/TopNav';
-// import SettingsModal from '@/components/settings/SettingsModal';
-// import { Suspense } from 'react';
-// import CallLogDrawer from '@/components/callLogDrawer/CallLogDrawer';
-
-// export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-
-//   return (
-//     <Suspense fallback={null}>
-//       <DashboardLayoutInner>
-//         {children}
-//       </DashboardLayoutInner>
-//     </Suspense>
-//   )
-// }
-
-// function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
-//   const [showSettings, setShowSettings] = useState(false);
-//   const [showCallLog, setShowCallLog] = useState(false);
-//   const [defaultTab, setDefaultTab] = useState<string>('room');
-//   const searchParams = useSearchParams();
-
-//   const router = useRouter();
-
-//   useEffect(() => {
-//     const settings = searchParams.get('settings');
-//     const sessionId = searchParams.get('session_id');
-//     const error = searchParams.get('error');
-
-//     // GUARD: If none of our target parameters are in the URL, stop immediately.
-//     // This prevents the infinite loop after router.replace('/dashboard') runs.
-//     if (!settings && !sessionId && !error) return;
-
-//     const handleDashboardParams = async () => {
-//       // 1. Handle Stripe verification if a session exists
-//       if (sessionId) {
-//         try {
-//           await fetch(
-//             `${process.env.NEXT_PUBLIC_API_URL}/api/stripe/subscription/status?session_id=${sessionId}`,
-//             { credentials: 'include' }
-//           );
-//         } catch (err) {
-//           console.error("Failed to verify subscription status:", err);
-//         }
-//       }
-
-//       // 2. Handle UI View states synchronously 
-//       if (settings) {
-//         setDefaultTab(settings);
-//         setShowSettings(true);
-//       }
-
-//       if (error === 'connect_failed') {
-//         setDefaultTab('payments');
-//         setShowSettings(true);
-//       }
-
-//       // 3. Clean the URL bar completely
-//       router.replace('/dashboard');
-//     };
-
-//     handleDashboardParams();
-//   }, [searchParams, router, setDefaultTab, setShowSettings]);
-
-//   return (
-//     <div className="min-h-screen bg-[#edf1f7]">
-//       <TopNav
-//         onSettingsOpen={() => setShowSettings(true)}
-//         onShowCallLogDrawer={() => setShowCallLog(true) }
-//       />
-//       <main className="pt-[88px] h-screen">{children}</main>
-//       {showSettings && (
-//         <SettingsModal
-//           defaultTab={defaultTab as any}
-//           onClose={() => setShowSettings(false)}
-//         />
-//       )}
-//       {showCallLog && (
-//         <CallLogDrawer
-//           onClose={() => setShowCallLog(false)}
-//         />
-//       )}
-//     </div>
-//   );
-// }

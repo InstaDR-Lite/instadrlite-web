@@ -154,16 +154,24 @@ export default function UpNext({ appointment, isMobile = false }: Props) {
             <span className={`w-1.5 h-1.5 rounded-full ${
               appointment.paymentStatus === 'paid' ? 'bg-[#007A40]' : 'bg-[#8B6914]'
             }`} />
-            <span className="text-[#7A9A7A]">Copay:</span>
-            <span className={
-              appointment.paymentStatus === 'paid' ? 'text-[#007A40]' : 'text-[#8B6914]'
-            }>
-              {appointment.paymentStatus === 'paid'
-                ? 'Paid ($35.00 via Stripe)'
-                : appointment.paymentStatus === 'authenticating'
-                ? 'Authenticating Card...'
-                : 'Unpaid'}
-            </span>
+            <span className="text-[#7A9A7A]">
+            {!appointment.paymentAmount || appointment.paymentAmount === 0 ? 'Payment:' : 'Copay:'}
+          </span>
+          <span className={
+            !appointment.paymentAmount || appointment.paymentAmount === 0
+              ? 'text-[#7A9A7A]'
+              : appointment.paymentStatus === 'paid' 
+              ? 'text-[#007A40]' 
+              : 'text-[#8B6914]'
+          }>
+            {!appointment.paymentAmount || appointment.paymentAmount === 0
+              ? 'No fee required'
+              : appointment.paymentStatus === 'paid'
+              ? `Paid ($${appointment.paymentAmount} via Stripe)`
+              : appointment.paymentStatus === 'authenticating'
+              ? 'Authenticating Card...'
+              : `$${appointment.paymentAmount} due`}
+          </span>
           </div>
           <div className="flex items-center gap-2 text-[11px] tracking-wide">
             <span className={`w-1.5 h-1.5 rounded-full ${

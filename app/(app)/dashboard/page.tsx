@@ -4,6 +4,7 @@ import TodayQueue from '@/components/dashboard/TodayQueue';
 import UpNext from '@/components/dashboard/UpNext';
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
 import WelcomeModal from '@/components/welcomeModal/WelcomeModal';
+import { useDashboard } from '@/context/DashboardContext';
 
 
 export type Appointment = {
@@ -34,6 +35,8 @@ export default function DashboardPage() {
   const [provider, setProvider] = useState<any>(null);
   const [showWelcome, setShowWelcome] = useState(false);
   const [providerNetworks, setProviderNetworks] = useState<string[]>([]);
+  const { setWaitingCount } = useDashboard();
+
 
 
   // 1. Wrap in useCallback so the function reference NEVER changes
@@ -52,6 +55,10 @@ export default function DashboardPage() {
         }));
         
         setAppointments(appts);
+        console.log('DashboardPage today:', appts);
+        const waiting = appts.filter((a: any) => a.status === 'ready' || a.status === 'checking_in');
+        console.log('DashboardPage waiting:', waiting.length);
+        setWaitingCount(waiting.length);
         
         // 💡 Functional state update bypasses the stale closure trap entirely
         setSelected((prevSelected: any) => {
@@ -89,17 +96,17 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
-    credentials: 'include'
-  })
-    .then(r => r.json())
-    .then(({ provider }) => {
-      setProvider(provider);
-      if (provider && !provider.has_seen_welcome) {
-        setShowWelcome(true);
-      }
-    });
-}, []);
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+      credentials: 'include'
+    })
+      .then(r => r.json())
+      .then(({ provider }) => {
+        setProvider(provider);
+        if (provider && !provider.has_seen_welcome) {
+          setShowWelcome(true);
+        }
+      });
+  }, []);
 
   const handleDismissWelcome = async () => {
     setShowWelcome(false);
@@ -119,10 +126,13 @@ export default function DashboardPage() {
   }, []);
   
   // On mount
-  useEffect(() => {
-    fetchToday();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+ useEffect(() => {
+   fetchToday();
+   
+  const interval = setInterval(fetchToday, 10000); // poll every 10s
+  return () => clearInterval(interval);
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   useEffect( () => {
     fetchPublicProfile();
@@ -161,7 +171,7 @@ export default function DashboardPage() {
         `}>
           <div className="px-5 py-3 border-b border-[rgba(0,80,40,0.18)] flex items-center gap-2">
             {/* <span className="text-[10px] tracking-widest uppercase text-[#7A9A7A]"></span> */}
-            <span className="text-xs tracking-widest uppercase text-[#3D5C3D]">Today</span>
+            <span className="text-xs tracking-widest uppercase text-[#3D5C3D]">Arrivals</span>
             <span className="ml-auto text-[10px] font-mono text-[#7A9A7A]">
               {new Date().toLocaleDateString('en-US', {
                 month: 'short', day: 'numeric', year: 'numeric'

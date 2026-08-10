@@ -1,95 +1,61 @@
 'use client';
 
-import { useRouter, usePathname } from 'next/navigation';
-import { Settings, Logs } from 'lucide-react';
+import { useDashboard } from "@/context/DashboardContext";
 
 interface TopNavProps {
-  onSettingsOpen?: () => void;
-  onShowCallLogDrawer?: () => void;
+  provider?: { name: string; slug: string | null } | null;
+  waitingCount?: number;
 }
 
-export default function TopNav({ onSettingsOpen, onShowCallLogDrawer }: TopNavProps) {
-  const pathname = usePathname();
-  const isDash   = pathname === '/dashboard';
-  const router = useRouter();
+export default function TopNav({ provider}: TopNavProps) {
+  const displayName = provider?.name 
+    ? `Dr. ${provider.name.split(' ').slice(-1)[0]}'s Room`
+    : 'InstaRoom';
+
+  const { waitingCount } = useDashboard();
+  console.log('TopNav waitingCount:', waitingCount);
   
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 font-mono">
-
-      {/* Level 1 — Identity + Status */}
-      <div className="h-[48px] flex items-center justify-between px-6 border-b border-[rgba(0,80,40,0.18)] bg-[#edf1f7]">
-        
-        {/* Logo */}
-        <div className="flex items-center gap-3">
-          <span className="border border-[rgba(0,80,40,0.30)] px-2 py-0.5 text-[#007A40] text-xs font-bold tracking-wider">
-            IR
+    <div className="fixed top-0 left-[0] right-0 h-[54px] z-40
+                    flex items-center justify-between px-6
+                    bg-[#edf1f7] border-b border-[rgba(0,80,40,0.18)]">
+      
+      <div className="flex items-center gap-3">
+        <span className="text-sm tracking-widest uppercase text-[#1A2E1A] font-mono">
+          {displayName}
+        </span>
+        {waitingCount > 0 && (
+          <span className="flex items-center gap-1.5 px-2 py-0.5 bg-[#8B6914] text-[#edf1f7] 
+                           text-[9px] font-mono tracking-widest uppercase">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#edf1f7] animate-pulse" />
+            patient waiting
           </span>
-          <span className="text-sm tracking-widest uppercase text-[#1A2E1A]">
-            InstaRoom
-          </span>
-        </div>
-
-        {/* Status + Profile */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-[10px] tracking-widest uppercase text-[#7A9A7A]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#007A40] animate-pulse" />
-            sys:online
-          </div>
-          <button
-            className="w-7 h-7 border border-[rgba(0,80,40,0.18)] flex items-center justify-center text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all text-xs"
-            onClick={onSettingsOpen}
-          >
-            <Settings size={16} color="var(--color-teal)" />
-          </button>
-          <button
-            className="w-7 h-7 border border-[rgba(0,80,40,0.18)] flex items-center justify-center text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all text-xs"
-            onClick={onShowCallLogDrawer}
-          >
-            <Logs size={16} color="var(--color-teal)" />
-          </button>
-        </div>
+        )}
       </div>
 
-
-      {/* Level 2 — Navigation + Actions */}
-      <div className="h-[40px] grid grid-cols-3 items-center px-6 border-b border-[rgba(0,80,40,0.18)] bg-[#e4eaf4]">
-        
-        {/* Left — empty spacer */}
-        <div />
-
-        {/* Center — Pills */}
-        <div className="flex items-center  justify-center">
-          <div className="flex items-center gap-2  border border-[rgba(0,80,40,0.18)]">
-            <button
-              onClick={() => router.push('/dashboard')}
-              className={`px-5 h-[28px] text-[10px] tracking-widest uppercase transition-all border-r border-[rgba(0,80,40,0.18)] ${
-                isDash
-                  ? 'bg-[rgba(0,122,64,0.10)] text-[#007A40]'
-                  : 'text-[#7A9A7A] hover:text-[#007A40]'
-              }`}
-            >
-              Dashboard
-            </button>
-            <button
-              onClick={() => router.push('/calendar')}
-              className={`px-5 h-[28px] text-[10px] tracking-widest uppercase transition-all ${
-                !isDash
-                  ? 'bg-[rgba(0,122,64,0.10)] text-[#007A40]'
-                  : 'text-[#7A9A7A] hover:text-[#007A40]'
-              }`}
-            >
-              Calendar
-            </button>
-          </div>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 text-[10px] tracking-widest uppercase text-[#7A9A7A] font-mono">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#007A40] animate-pulse" />
+          sys:online
         </div>
 
-        {/* Right — New Appt */}
-        {/* <div className="flex justify-end">
-          <button className="hidden md:block border border-[#007A40] px-3 h-[28px] text-[10px] tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#edf1f7] transition-all">
-            + new appt
-          </button>
-        </div> */}
-      </div>    
+        {provider?.slug && (
+          <div className="flex items-center gap-2 border border-[rgba(0,80,40,0.18)] px-3 py-1">
+            <span className="text-[10px] font-mono text-[#3D5C3D]">
+              instaroom.link/{provider.slug}
+            </span>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(`https://instaroom.link/${provider.slug}`);
+              }}
+              className="text-[9px] font-mono tracking-widest uppercase text-[#7A9A7A] 
+                        hover:text-[#007A00] transition-all border-l border-[rgba(0,80,40,0.18)] pl-2"
+            >
+              Copy
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
