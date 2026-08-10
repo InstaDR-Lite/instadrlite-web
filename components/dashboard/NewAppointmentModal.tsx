@@ -66,8 +66,8 @@ const [form, setForm] = useState({
 
   const handleSubmit = async () => {
 
-    if (!form.patientName || !form.date || !form.startTime || (isInsurance && form.paymentAmount === '0.00')) {
-      setError('Patient name, date and time, copay are required');
+    if (!form.patientName || !form.patientEmail || !form.date || !form.startTime || (isInsurance && form.paymentAmount === '0.00')) {
+      setError('Patient name, email, date and time, copay are required');
       return;
     }
     setLoading(true);
@@ -258,7 +258,7 @@ const [form, setForm] = useState({
             {/* Patient Email */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">
-                client email
+                client email *
               </label>
               <input
                 type="email"
