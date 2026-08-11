@@ -26,6 +26,7 @@ function mapAppointmentToLog(a: any) {
     payStatus: a.payment_status ?? 'unpaid',
     payType: a.payment_type ?? 'self_pay',
     stream: 'LOCKED',
+    auditHash: a.audit_hash ?? '',
   };
 }
 

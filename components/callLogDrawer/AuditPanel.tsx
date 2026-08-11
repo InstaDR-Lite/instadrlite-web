@@ -82,6 +82,8 @@ export type CptCode = {
 
 export default function AuditPanel({ log, onClose }: { log: any, onClose: () => void }) {
 
+  console.log('AuditPanel log:', log);
+  
   const summaryText = [
     `SESSION AUDIT LOG // ROOM_${log.roomId.toUpperCase()}`,
     `Date: ${log.date}`,
@@ -128,10 +130,24 @@ export default function AuditPanel({ log, onClose }: { log: any, onClose: () => 
           <div className="mt-4">
             <div className="text-[#007A40]">[ COMPLIANCE & JURISDICTION DATA ]</div>
             <div className="text-[#7A9A7A] text-[11px]">{'-'.repeat(72)}</div>
-            <div className="flex gap-3"><span className="text-[#7A9A7A] w-[160px]">GPS Geo-Verify</span><span className="text-[#1A2E1A]">{log.geoState}</span></div>
+            <div className="flex gap-3">
+              <span className="text-[#7A9A7A] w-[160px]">GPS Geo-Verify</span>
+              <span className="text-[#1A2E1A]">
+              {log.geoState}
+              </span>
+            </div>
             <div className={log.geoOk ? 'text-[#007A40]' : 'text-[#CC2200]'}>
               {'  '}↳ Status: {log.geoOk ? 'VERIFIED [Inside Clinician Licensed State]' : 'ERROR [Outside Licensed State]'}
             </div>
+
+            {log.auditHash && (
+              <div className="mt-4 pt-4 border- border-[rgba(0,80,40,0.12)]">
+                <span className="text-[#7A9A7A] w-[160px]">Audit Seal</span>˝˝
+                <div className="font-mono text-[12px] text-[#7A9A7A] break-all">
+                  SHA-256: {log.auditHash}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Patient Attestation */}
