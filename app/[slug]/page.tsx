@@ -17,6 +17,7 @@ interface ProviderProfile {
   session_cost: number;
   slot_duration: number;
   insurance_networks?: string[];
+  focus_areas: string[];
 }
 
 interface Provider {
@@ -461,8 +462,10 @@ export default function ProviderRoomPage() {
               <span className="text-[#007A40] ml-2 text-sm">{provider.credentials}</span>
             )}
           </div>
-          {provider?.specialty && (
-            <div className="text-sm text-[#7A9A7A] font-mono">{provider.specialty}</div>
+          {(provider?.profile?.focus_areas?.length ?? 0) > 0 && (
+            <div className="text-sm text-[#7A9A7A] font-mono">
+              {provider?.profile?.focus_areas.slice(0, 3).join(', ')}
+            </div>
           )}
           <div className="flex items-center gap-1.5 mt-1">
             <span className="w-1.5 h-1.5 rounded-full bg-[#007A40] animate-pulse" />

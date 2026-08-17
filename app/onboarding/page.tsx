@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import PlanSelectionModal from '@/components/PlanSelectionModal';
+import ProfileConfirmation from '@/components/ProfileConfirmation';
 
 const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
@@ -32,6 +33,14 @@ function OnboardingInner() {
   const [isAuthorizing, setIsAuthorizing] = useState(true);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [provider, setProvider] = useState<any>();
+  const [confirmed, setConfirmed] = useState(false);
+
+  // Add to onboarding step 2 state
+  const [profileUrl, setProfileUrl] = useState('');
+  const [scraping, setScraping] = useState(false);
+  const [scraped, setScraped] = useState<any>(null);
+  const [showManual, setShowManual] = useState(false);
+
   
   const searchParams = useSearchParams();
   
@@ -72,23 +81,70 @@ function OnboardingInner() {
     }
   };
 
+  const handleAutoFill = async () => {
+    if (!profileUrl) return;
+    setScraping(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/map-profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ url: profileUrl })
+      });
+      const { profile } = await res.json();
+      
+      setScraped(profile);
+      console.log('Gemini profile', profile);
+    } catch (err) {
+      console.error('[AutoFill]', err);
+    } finally {
+      setScraping(false);
+    }
+  };
+
+
+  // Manual path — no params needed
   const handleComplete = async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/onboarding`, {
-        method:      'POST',
-        headers:     { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: 
-          JSON.stringify({
-            ...form,
-            onboardingComplete: true,
-          })
+        body: JSON.stringify({
+          ...form,
+          onboardingComplete: true,
+        })
       });
-
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
+  
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Auto-fill path — receives scraped + edited form from ProfileConfirmation
+  const handleConfirmProfile = async (confirmedData: any) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/onboarding`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...confirmedData,
+          onboardingComplete: true,
+        })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      setConfirmed(true);
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message);
@@ -274,21 +330,18 @@ function OnboardingInner() {
     />
   }
 
-
   return (
     <div className="min-h-screen bg-[#edf1f7] flex items-center justify-center p-4">
       <div className="w-full max-w-[480px] border border-[rgba(0,80,40,0.18)] bg-[#e4eaf4]">
-
         {/* Header */}
         <div className="px-6 py-4 border-b border-[rgba(0,80,40,0.18)] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="border border-[rgba(0,80,40,0.30)] px-2 py-0.5 text-[#007A40] text-xs font-bold">IR</span>
             <span className="text-[11px] font-mono text-[#007A40]">
-              instaroom.link/{localStorage.getItem('instaroom:claimed_slug')}
+              https://instaroom.link/{provider?.slug}
             </span>
           </div>
           <span className="text-[10px] text-[#7A9A7A] tracking-widest uppercase">
-            step {step + 1} / 4
+            step {step + 1} / {scraped ? 2 : 4}
           </span>
         </div>
 
@@ -329,89 +382,164 @@ function OnboardingInner() {
               </div>
             </div>
           </>
-          )}
+        )}
 
-          {step === 1 && (
-            <>
-            <div className="p-6 flex flex-col gap-4">
-              <div>
-                <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">
-                  Clinical identity
-                </div>
-                <div className="text-lg font-semibold text-[#1A2E1A]">Your public profile</div>
-                <p className="text-[11px] text-[#7A9A7A] font-mono mt-1">{`Shown on your public room available at https://instaroom.link/${provider?.slug}`}</p>
-              </div>
-
-              {/* Credentials */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">credentials</label>
-                <div className="flex flex-wrap gap-2">
-                  {credentials.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => setForm(f => ({ ...f, credentials: c }))}
-                      className={`px-3 py-1 text-[11px] tracking-widest border transition-all ${
-                        form.credentials === c
-                          ? 'border-[#007A40] bg-[rgba(0,122,64,0.10)] text-[#007A40]'
-                          : 'border-[rgba(0,80,40,0.18)] text-[#7A9A7A] hover:border-[#007A40]'
-                      }`}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* NPI */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">NPI number</label>
-                <p className="text-[10px] text-[#7A9A7A] font-mono">
-                  Required for superbills and insurance receipts.
-                </p>
-                <input
-                  type="text"
-                  maxLength={10}
-                  value={form.npi}
-                  onChange={e => setForm(f => ({ ...f, npi: e.target.value.replace(/\D/g, '') }))}
-                  placeholder="10-digit NPI"
-                  className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all"
-                />
-              </div>
-
-              {/* Specialty */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">specialty</label>
-                <input
-                  type="text"
-                  value={form.specialty}
-                  onChange={e => setForm(f => ({ ...f, specialty: e.target.value }))}
-                  placeholder="e.g. Mental Health, Family Medicine, Internal Medicine, Cardiology, etc."
-                  className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all"
-                />
-              </div>
-
-              <div className="flex gap-3">
-                <button onClick={() => setStep(0)} className="px-4 py-3 border border-[rgba(0,80,40,0.18)] text-[10px] tracking-widest uppercase text-[#7A9A7A] transition-all">
-                  
-                  ← back
-                </button>
-              <button
-                onClick={handleNext}
-                disabled={!form.credentials}
-                className={`w-full py-3 text-xs tracking-widest uppercase transition-all ${
-                  form.credentials
-                    ? 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#e4eaf4]'
-                    : 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] cursor-not-allowed'
-                }`}
-              >
-                next →
-                  </button>
-              </div>
+        {step === 1 && (
+          <>
+            <div className="pt-6 pl-6 text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">
+              Clinical identity
             </div>
-            </>
-          )}
+            <div className="pl-6 py-1 text-lg font-semibold text-[#1A2E1A]">
+              Your public profile
+            </div>
+            <div className="p-6 flex flex-col gap-4">
+              
+              {/* ── AI Auto-fill ── */}
+              {!scraped && !showManual && (
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11px] tracking-widest uppercase text[#7A9A7A]">
+                    auto-fill from your psychology today profile
+                  </label>
+                  <div className="py-2 flex gap-2">
+                    <input
+                      type="url"
+                      value={profileUrl}
+                      onChange={e => setProfileUrl(e.target.value)}
+                      placeholder="https://psychologytoday.com/us/therapists/..."
+                      className="flex-1 px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)]
+                                text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A]
+                                focus:outline-none focus:border-[#007A40] transition-all"
+                    />
+                    <button
+                      onClick={handleAutoFill}
+                      disabled={!profileUrl || scraping}
+                      className="px-4 py-2 border border-[#007A40] text-[10px] tracking-widest
+                                uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]
+                                transition-all disabled:opacity-50 whitespace-nowrap font-mono"
+                    >
+                      {scraping ? '// scanning...' : '⚡ Auto-fill'}
+                    </button>
+                  </div>
 
-          {step === 2 && (
+                  <div className="flex items-center gap-3 my-2">
+                    <div className="flex-1 h-px bg-[rgba(0,80,40,0.12)]" />
+                    <span className="text-[12px] font-mono tracking-widest uppercase text-[#7A9A7A]">
+                      or
+                    </span>
+                    <div className="flex-1 h-px bg-[rgba(0,80,40,0.12)]" />
+                  </div>
+                  <span className="text-[10px] font-mono text-[#7A9A7A]">
+
+                    <button
+                      onClick={() => setShowManual(true)}
+                      className="w-full p-4 border border-[#007A40] text-[10px] tracking-widest
+                                uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]
+                                transition-all  whitespace-nowrap font-mono"
+                    >
+                      Do it manually
+                    </button>
+                  
+                  </span>
+                </div>
+              )}
+
+              {/* Manual fields — shown after scrape or manual entry */}
+              {(showManual &&
+                <>
+                  {/* <div>
+                    <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">
+                      Clinical identity
+                    </div>
+                    <div className="text-lg font-semibold text-[#1A2E1A]">
+                      Your public profile
+                    </div>
+                    <p className="text-[11px] text-[#7A9A7A] font-mono mt-1">
+                      {`Shown on your public room at https://instaroom.link/${provider?.slug}`}
+                    </p>
+                  </div> */}
+              
+                  {/* Credentials */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">credentials</label>
+                    <div className="flex flex-wrap gap-2">
+                      {credentials.map(c => (
+                        <button
+                          key={c}
+                          onClick={() => setForm(f => ({ ...f, credentials: c }))}
+                          className={`px-3 py-1 text-[11px] tracking-widest border transition-all ${
+                            form.credentials === c
+                              ? 'border-[#007A40] bg-[rgba(0,122,64,0.10)] text-[#007A40]'
+                              : 'border-[rgba(0,80,40,0.18)] text-[#7A9A7A] hover:border-[#007A40]'
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* NPI */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">NPI number</label>
+                    <p className="text-[10px] text-[#7A9A7A] font-mono">
+                      Required for superbills and insurance receipts.
+                    </p>
+                    <input
+                      type="text"
+                      maxLength={10}
+                      value={form.npi}
+                      onChange={e => setForm(f => ({ ...f, npi: e.target.value.replace(/\D/g, '') }))}
+                      placeholder="10-digit NPI"
+                      className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all"
+                    />
+                  </div>
+
+                  {/* Specialty */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">specialty</label>
+                    <input
+                      type="text"
+                      value={form.specialty}
+                      onChange={e => setForm(f => ({ ...f, specialty: e.target.value }))}
+                      placeholder="e.g. Mental Health, Family Medicine, Internal Medicine, Cardiology, etc."
+                      className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all"
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button onClick={() => setStep(0)} className="px-4 py-3 border border-[rgba(0,80,40,0.18)] text-[10px] tracking-widest uppercase text-[#7A9A7A] transition-all">
+                      
+                      ← back
+                    </button>
+                  <button
+                    onClick={handleNext}
+                    disabled={!form.credentials}
+                    className={`w-full py-3 text-xs tracking-widest uppercase transition-all ${
+                      form.credentials
+                        ? 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#e4eaf4]'
+                        : 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] cursor-not-allowed'
+                    }`}
+                  >
+                    next →
+                  </button>
+                  </div>
+                </>
+              )}
+
+              
+            {/* Confirmation card */}
+            {scraped && !confirmed && (
+              <ProfileConfirmation
+                scraped={scraped}
+                 slug={provider?.slug ?? ''}
+                onConfirm={handleConfirmProfile}
+              />
+              )}
+              </div>
+          </>
+        )}  
+
+        {step === 2 && (
           <>
             <div className="p-6 flex flex-col gap-4">
               <div>
@@ -468,52 +596,52 @@ function OnboardingInner() {
           )}
 
           {step === 3 && (
-          <>
-            <div className="p-6 flex flex-col gap-4"> 
-              <div>
-                {/* <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">// step 3 of 3</div> */}
-                <div className="text-lg font-semibold text-[#1A2E1A]">How do you accept payments?</div>
-                <p className="text-[11px] text-[#7A9A7A] font-mono mt-1">You can change this anytime in Settings.</p>
-              </div>
+            <>
+              <div className="p-6 flex flex-col gap-4"> 
+                <div>
+                  {/* <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">// step 3 of 3</div> */}
+                  <div className="text-lg font-semibold text-[#1A2E1A]">How do you accept payments?</div>
+                  <p className="text-[11px] text-[#7A9A7A] font-mono mt-1">You can change this anytime in Settings.</p>
+                </div>
 
-              <div className="flex flex-col gap-3">
-                {[
-                  { value: 'byos',    label: 'Bring Your Own Stripe', sub: 'Direct payouts. 0% platform fee.' },
-                  { value: 'managed', label: 'Managed Instant Payouts', sub: 'We handle it. 2% convenience fee.' },
-                  { value: 'later',   label: 'Set up later in Settings', sub: 'Skip for now.' },
-                ].map(o => (
+                <div className="flex flex-col gap-3">
+                  {[
+                    { value: 'byos',    label: 'Bring Your Own Stripe', sub: 'Direct payouts. 0% platform fee.' },
+                    { value: 'managed', label: 'Managed Instant Payouts', sub: 'We handle it. 2% convenience fee.' },
+                    { value: 'later',   label: 'Set up later in Settings', sub: 'Skip for now.' },
+                  ].map(o => (
+                    <button
+                      key={o.value}
+                      onClick={() => setForm(f => ({ ...f, paymentMode: o.value }))}
+                      className={`w-full p-3 border text-left transition-all ${
+                        form.paymentMode === o.value
+                          ? 'border-[#007A40] bg-[rgba(0,122,64,0.08)]'
+                          : 'border-[rgba(0,80,40,0.18)] hover:border-[#007A40]'
+                      }`}
+                    >
+                      <div className="text-sm font-semibold text-[#1A2E1A]">{o.label}</div>
+                      <div className="text-[11px] text-[#7A9A7A] font-mono mt-0.5">{o.sub}</div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex gap-2">
+                  <button onClick={() => setStep(2)} className="px-4 py-3 border border-[rgba(0,80,40,0.18)] text-[10px] tracking-widest uppercase text-[#7A9A7A] transition-all">
+                    ← back
+                  </button>
                   <button
-                    key={o.value}
-                    onClick={() => setForm(f => ({ ...f, paymentMode: o.value }))}
-                    className={`w-full p-3 border text-left transition-all ${
-                      form.paymentMode === o.value
-                        ? 'border-[#007A40] bg-[rgba(0,122,64,0.08)]'
-                        : 'border-[rgba(0,80,40,0.18)] hover:border-[#007A40]'
+                    onClick={handleComplete}
+                    disabled={!form.paymentMode || loading}
+                    className={`flex-1 py-3 text-xs tracking-widest uppercase transition-all ${
+                      form.paymentMode && !loading
+                        ? 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]'
+                        : 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] cursor-not-allowed'
                     }`}
                   >
-                    <div className="text-sm font-semibold text-[#1A2E1A]">{o.label}</div>
-                    <div className="text-[11px] text-[#7A9A7A] font-mono mt-0.5">{o.sub}</div>
+                    {loading ? '// saving...' : '[ complete setup ]'}
                   </button>
-                ))}
+                </div>
               </div>
-
-              <div className="flex gap-2">
-                <button onClick={() => setStep(2)} className="px-4 py-3 border border-[rgba(0,80,40,0.18)] text-[10px] tracking-widest uppercase text-[#7A9A7A] transition-all">
-                  ← back
-                </button>
-                <button
-                  onClick={handleComplete}
-                  disabled={!form.paymentMode || loading}
-                  className={`flex-1 py-3 text-xs tracking-widest uppercase transition-all ${
-                    form.paymentMode && !loading
-                      ? 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]'
-                      : 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] cursor-not-allowed'
-                  }`}
-                >
-                  {loading ? '// saving...' : '[ complete setup ]'}
-                </button>
-              </div>
-            </div>
             </>
           )}
         </div>
