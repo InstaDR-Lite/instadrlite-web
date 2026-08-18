@@ -41,7 +41,7 @@ function ClaimRoomModal({ onClaim }: { onClaim: (slug: string) => void }) {
           <div className="flex flex-col gap-2">
             <div className="flex items-center border border-[rgba(0,80,40,0.18)] bg-[#EDE8DC]">
               <span className="px-3 text-[11px] text-[#7A9A7A] font-mono border-r border-[rgba(0,80,40,0.18)] py-3 whitespace-nowrap">
-                instaroom.link/
+                instaroom.link/rm/
               </span>
               <input
                 type="text"
@@ -72,7 +72,7 @@ function ClaimRoomModal({ onClaim }: { onClaim: (slug: string) => void }) {
             )}
             {status === 'available' && (
               <p className="text-[11px] text-[#007A40] font-mono">
-                // instaroom.link/{slug} is yours
+                // instaroom.link/rm/{slug} is yours
               </p>
             )}
           </div>

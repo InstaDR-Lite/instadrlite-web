@@ -17,7 +17,7 @@ export default function RoomTab() {
   const [profile,  setProfile]  = useState<any>({});
   const [saving,   setSaving]   = useState(false);
   const [saved, setSaved] = useState(false);
-  const roomUrl = `https://instaroom.link/${provider?.slug || ''}`;
+  const roomUrl = `https://instaroom.link/rm/${provider?.slug || ''}`;
   
   const [showInsuranceModal, setShowInsuranceModal] = useState(false);
 
@@ -146,7 +146,7 @@ export default function RoomTab() {
               <div className="flex items-center gap-2">
                 <div className="flex items-center border border-[rgba(0,80,40,0.18)] bg-[#EDE8DC] flex-1">
                   <span className="px-3 text-[11px] text-[#7A9A7A] font-mono border-r border-[rgba(0,80,40,0.18)] py-2 whitespace-nowrap">
-                    instaroom.link/
+                    instaroom.link/rm/
                   </span>
                   <span className="px-3 text-sm font-mono text-[#007A40] py-2">
                     {provider.slug}

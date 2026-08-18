@@ -63,6 +63,30 @@ export default function ProviderRoomPage() {
   const [weekOffset, setWeekOffset] = useState(0);
   
   const [bookingForm, setBookingForm] = useState(initialState);
+
+  // First useEffect — validate slug only
+  useEffect(() => {
+    if (!slug) {
+      router.replace('/rm');
+      return;
+    }
+
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/slug/${slug}`)
+      .then(r => {
+        if (!r.ok) {
+          router.replace('/rm');
+          return null;
+        }
+        return r.json();
+      })
+      .then(data => {
+        if (!data) return;
+        setProvider(data.provider);
+        setLoading(false);
+      })
+      .catch(() => router.replace('/rm'));
+  }, [router, slug]);
+
     
   const fetchSlots = async (offset = 0) => {
     setSlotsLoading(true);
@@ -114,16 +138,16 @@ export default function ProviderRoomPage() {
     }
   };
   
-  useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/slug/${slug}/today`)
-      .then(r => r.json())
-      .then(data => {
-        if (!data.success) { setNotFound(true); return; }
-        setProvider(data.provider);
-        setLoading(false);
-      })
-      .catch(() => { setNotFound(true); setLoading(false); });
-  }, [slug]);
+  // useEffect(() => {
+  //   fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/slug/${slug}/today`)
+  //     .then(r => r.json())
+  //     .then(data => {
+  //       if (!data.success) { setNotFound(true); return; }
+  //       setProvider(data.provider);
+  //       setLoading(false);
+  //     })
+  //     .catch(() => { setNotFound(true); setLoading(false); });
+  // }, [slug]);
 
 
   const handleCheckIn = async () => {
