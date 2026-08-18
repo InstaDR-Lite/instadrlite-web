@@ -108,7 +108,7 @@ export default function PlanSelectionModal({ isOpen, onClose, onSelect }: Props)
           {/* Features */}
           <div className="border border-[rgba(0,80,40,0.18)] p-3 flex flex-col gap-1.5">
             {[
-              'Permanent room link (instaroom.link/your-name)',
+              'Permanent room link (instaroom.link/rm/your-name)',
               'Unlimited HD video sessions',
               'Google Calendar sync',
               'Direct Stripe payouts — 0% fee',

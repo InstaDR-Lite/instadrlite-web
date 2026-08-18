@@ -9,7 +9,7 @@ interface Props {
 
 export default function OnboardingSuccess({ slug, providerName }: Props) {
   const router = useRouter();
-  const roomUrl = `instaroom.link/${slug}`;
+  const roomUrl = `instaroom.link/rm/${slug}`;
 
   return (
     <div className="p-6 flex flex-col gap-6 items-center text-center">

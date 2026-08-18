@@ -175,7 +175,7 @@ export default function RoomTab() {
               {/* Public Profile */}
               <div className="border border-[rgba(0,80,40,0.18)] p-4 flex flex-col gap-4">
                 <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase">
-                  // public profile — visible at instaroom.link/{provider?.slug}
+                  // public profile — visible at instaroom.link/rm/{provider?.slug}
                 </div>
 
                 {/* Bio */}

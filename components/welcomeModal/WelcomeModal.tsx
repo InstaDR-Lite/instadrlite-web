@@ -33,7 +33,7 @@ export default function WelcomeModal({ provider, onDismiss, onOpenSettings }: We
   const [copied, setCopied] = useState(false);
 
   const roomUrl = provider.slug
-    ? `instaroom.link/${provider.slug}`
+    ? `instaroom.link/rm/${provider.slug}`
     : null;
 
   const handleCopy = () => {

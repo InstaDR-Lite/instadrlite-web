@@ -42,11 +42,11 @@ export default function TopNav({ provider}: TopNavProps) {
         {provider?.slug && (
           <div className="flex items-center gap-2 border border-[rgba(0,80,40,0.18)] px-3 py-1">
             <span className="text-[10px] font-mono text-[#3D5C3D]">
-              instaroom.link/{provider.slug}
+              instaroom.link/rm/{provider.slug}
             </span>
             <button
               onClick={() => {
-                navigator.clipboard.writeText(`https://instaroom.link/${provider.slug}`);
+                navigator.clipboard.writeText(`https://instaroom.link/rm/${provider.slug}`);
               }}
               className="text-[9px] font-mono tracking-widest uppercase text-[#7A9A7A] 
                         hover:text-[#007A00] transition-all border-l border-[rgba(0,80,40,0.18)] pl-2"
