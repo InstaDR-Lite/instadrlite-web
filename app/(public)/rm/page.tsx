@@ -13,7 +13,7 @@ export default function RoomFinderPage() {
     if (!roomSlug.trim()) return;
     const slug = roomSlug.trim().toLowerCase();
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/slug/${slug}/today`
+      `${process.env.NEXT_PUBLIC_API_URL}/api/auth/slug/${slug}`
     );
     const data = await res.json();
     if (data.success) {

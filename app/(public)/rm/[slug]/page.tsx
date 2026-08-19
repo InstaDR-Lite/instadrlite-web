@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
-
 interface ProviderProfile {
   bio?:                string;
   phone?:              string;
@@ -12,12 +11,12 @@ interface ProviderProfile {
   certifications:      string[];
   accepts_insurance:   boolean;
   accepts_selfpay:     boolean;
-  accepts_sliding: boolean;
-  session_duration: number;
-  session_cost: number;
-  slot_duration: number;
+  accepts_sliding:     boolean;
+  session_duration:    number;
+  session_cost:        number;
+  slot_duration:       number;
   insurance_networks?: string[];
-  focus_areas: string[];
+  focus_areas:         string[];
 }
 
 interface Provider {
@@ -30,53 +29,54 @@ interface Provider {
   profile?:        ProviderProfile | null;
 }
 
-type PageView = 'profile' | 'booking' | 'confirm' | 'booked';
+type ActiveTab  = 'profile' | 'book' | 'room';
+type PageView   = 'tabs' | 'confirm' | 'booked';
 
-const initialState = {
+const initialBookingForm = {
   name: '',
   email: '',
   payment_type: 'self_pay',
   insurance_carrier: '',
-}
+};
 
 export default function ProviderRoomPage() {
   const params = useParams();
   const router = useRouter();
-  const slug = params.slug as string;
+  const slug   = params.slug as string;
 
-  const [provider, setProvider] = useState<Provider | null>(null);
+  // Provider state
+  const [provider,    setProvider]    = useState<Provider | null>(null);
+  const [loading,     setLoading]     = useState(true);
+
+  // Tab + page view
+  const [activeTab,   setActiveTab]   = useState<ActiveTab>('profile');
+  const [pageView,    setPageView]    = useState<PageView>('tabs');
+
+  // Booking state
+  const [slots,       setSlots]       = useState<any[]>([]);
+  const [slotsLoaded, setSlotsLoaded] = useState(false);
+  const [slotsLoading,setSlotsLoading]= useState(false);
+  const [weekOffset,  setWeekOffset]  = useState(0);
+  const [selectedSlot,setSelectedSlot]= useState<any>(null);
+  const [bookingForm, setBookingForm] = useState(initialBookingForm);
+  const [booking,     setBooking]     = useState(false);
+  const [bookedAppt,  setBookedAppt]  = useState<any>(null);
+
+  // Room check-in state
   const [patientName, setPatientName] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [checking, setChecking] = useState(false);
-  const [waiting, setWaiting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notFound, setNotFound] = useState(false);
+  const [checking,    setChecking]    = useState(false);
+  const [waiting,     setWaiting]     = useState(false);
 
+  // Shared error
+  const [error,       setError]       = useState<string | null>(null);
 
-  const [pageView, setPageView] = useState<PageView>('profile');
-  const [slots, setSlots] = useState<any[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<any>(null);
-  
-  const [booking, setBooking] = useState(false);
-  const [bookedAppt, setBookedAppt] = useState<any>(null);
-  const [slotsLoading, setSlotsLoading] = useState(false);
-  const [weekOffset, setWeekOffset] = useState(0);
-  
-  const [bookingForm, setBookingForm] = useState(initialState);
-
-  // First useEffect — validate slug only
+  // ── Validate slug + fetch provider ──────────────────────────────────────
   useEffect(() => {
-    if (!slug) {
-      router.replace('/rm');
-      return;
-    }
+    if (!slug) { router.replace('/rm'); return; }
 
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/slug/${slug}`)
       .then(r => {
-        if (!r.ok) {
-          router.replace('/rm');
-          return null;
-        }
+        if (!r.ok) { router.replace('/rm'); return null; }
         return r.json();
       })
       .then(data => {
@@ -87,43 +87,51 @@ export default function ProviderRoomPage() {
       .catch(() => router.replace('/rm'));
   }, [router, slug]);
 
-    
+  // ── Lazy-load slots when Book tab first selected ─────────────────────────
+  useEffect(() => {
+    if (activeTab === 'book' && !slotsLoaded) {
+      fetchSlots(0);
+    }
+  }, [activeTab]);
+
   const fetchSlots = async (offset = 0) => {
     setSlotsLoading(true);
     const res  = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/slug/${slug}/slots?weekOffset=${offset}`
     );
     const data = await res.json();
-    if (data.success) setSlots(data.slots);
+    if (data.success) { setSlots(data.slots); setSlotsLoaded(true); }
     setSlotsLoading(false);
   };
 
   const handlePrevWeek = () => {
-    if (weekOffset === 0) return; // can't go to past
-    const newOffset = weekOffset - 1;
-    setWeekOffset(newOffset);
-    fetchSlots(newOffset);
-} ;
+    if (weekOffset === 0) return;
+    const o = weekOffset - 1;
+    setWeekOffset(o);
+    fetchSlots(o);
+  };
 
   const handleNextWeek = () => {
-    const newOffset = weekOffset + 1;
-    setWeekOffset(newOffset);
-    fetchSlots(newOffset);
+    const o = weekOffset + 1;
+    setWeekOffset(o);
+    fetchSlots(o);
   };
-    
+
+  // ── Book appointment ─────────────────────────────────────────────────────
   const handleBook = async () => {
     if (!bookingForm.name || !bookingForm.email || !selectedSlot) return;
     setBooking(true);
+    setError(null);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/book`, {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body:    JSON.stringify({
           slug,
-          patientName: bookingForm.name,
-          patientEmail: bookingForm.email,
-          datetime: selectedSlot.datetime,
-          payment_type: bookingForm.payment_type,
+          patientName:       bookingForm.name,
+          patientEmail:      bookingForm.email,
+          datetime:          selectedSlot.datetime,
+          payment_type:      bookingForm.payment_type,
           insurance_carrier: bookingForm.insurance_carrier || null,
         })
       });
@@ -137,242 +145,86 @@ export default function ProviderRoomPage() {
       setBooking(false);
     }
   };
-  
-  // useEffect(() => {
-  //   fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/appointments/slug/${slug}/today`)
-  //     .then(r => r.json())
-  //     .then(data => {
-  //       if (!data.success) { setNotFound(true); return; }
-  //       setProvider(data.provider);
-  //       setLoading(false);
-  //     })
-  //     .catch(() => { setNotFound(true); setLoading(false); });
-  // }, [slug]);
 
-
+  // ── Room check-in ────────────────────────────────────────────────────────
   const handleCheckIn = async () => {
-    if (!patientName.trim()) {
-      setError('Please enter your name');
-      return;
-    }
-
+    if (!patientName.trim()) { setError('Please enter your name'); return; }
     setChecking(true);
     setError(null);
-
     try {
-      const res = await fetch(
+      const res  = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/appointments/slug/${slug}/today?patientName=${encodeURIComponent(patientName)}`
       );
       const data = await res.json();
-
-      if (data.roomId) {
-        // Appointment found → redirect to patient gate
-        router.push(`/room/${data.roomId}`);
-        return;
-      }
-
-      // No appointment found
+      if (data.roomId) { router.push(`/room/${data.roomId}`); return; }
       setError("We couldn't find an appointment for that name today. Please check with your provider.");
-      setChecking(false);
-
     } catch {
       setError('Something went wrong. Please try again.');
+    } finally {
       setChecking(false);
     }
   };
-  
+
+  // ── Handle tab switch ────────────────────────────────────────────────────
+  const handleTabSwitch = (tab: ActiveTab) => {
+    setActiveTab(tab);
+    setError(null);
+  };
+
+  // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen bg-[#edf1f7] flex items-center justify-center">
       <p className="text-[11px] text-[#7A9A7A] tracking-widest font-mono">// loading...</p>
     </div>
   );
-  
-  if (notFound) return (
-    <div className="min-h-screen bg-[#edf1f7] flex items-center justify-center p-4">
-      <div className="text-center">
-        <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-2">// not found</div>
-        <div className="text-lg font-semibold text-[#1A2E1A]">Room not found</div>
-        <p className="text-sm text-[#7A9A7A] font-mono mt-2">
-          This provider link doesn&apos;t exist or has moved.
-        </p>
-      </div>
-    </div>
-  );
-  
-  if (pageView === 'booking') return (
-    <div className="min-h-screen bg-[#edf1f7] p-4">
-      <div className="w-full max-w-[640px] mx-auto flex flex-col gap-4">
 
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setPageView('profile')}
-            className="text-[10px] text-[#7A9A7A] hover:text-[#007A40] tracking-widest uppercase"
-          >
-            ← back
-          </button>
-          <span className="text-[10px] text-[#7A9A7A] tracking-widest uppercase font-mono">
-            // select a time
-          </span>
-        </div>
-
-        {/* Provider mini header */}
-        <div className="border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8] px-4 py-3 flex items-center gap-3">
-          <div>
-            <span className="text-sm font-semibold text-[#1A2E1A]">{provider?.name}</span>
-            {provider?.credentials && (
-              <span className="text-[#007A40] ml-2 text-xs">{provider.credentials}</span>
-            )}
-          </div>
-          {provider?.profile?.session_cost && (
-            <span className="ml-auto text-[11px] text-[#7A9A7A] font-mono">
-              ${provider.profile.session_cost} / {provider.profile.slot_duration || 50} min
-            </span>
-          )}
-        </div>
-
-        {slotsLoading ? (
-          <p className="text-[11px] text-[#7A9A7A] tracking-widest font-mono">// loading slots...</p>
-        ) : (
-
-        <>
-          <div className="flex items-center justify-between mb-2">
-            <button
-              onClick={handlePrevWeek}
-              disabled={weekOffset === 0}
-              className={`text-[10px] tracking-widest uppercase font-mono px-3 py-1.5 border transition-all ${
-                weekOffset === 0
-                  ? 'border-[rgba(0,80,40,0.08)] text-[rgba(0,80,40,0.2)] cursor-not-allowed'
-                  : 'border-[rgba(0,80,40,0.18)] text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40]'
-              }`}
-            >
-              ← prev
-            </button>
-
-            <span className="text-[10px] text-[#7A9A7A] font-mono tracking-widest">
-              {slots.length > 0 ? `${slots[0].date.split(',')[1].trim()} — ${slots[6].date.split(',')[1].trim()}` : ''}
-            </span>
-
-            <button
-              onClick={handleNextWeek}
-              className="text-[10px] tracking-widest uppercase font-mono px-3 py-1.5 border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all"
-            >
-              next →
-            </button>
-          </div>
-          <div className="grid grid-cols-7 gap-1 bg-[rgba(0,80,40,0.08)] p-1">
-            {slots.map((day, i) => (
-              <div key={i} className="flex flex-col gap-1">
-                {/* Day header */}
-                <div className="bg-[#EDE8DC] px-1 py-2 text-center border border-[rgba(0,80,40,0.18)]">
-                  <div className="text-[9px] text-[#7A9A7A] tracking-widest uppercase font-mono">
-                    {day.weekday}
-                  </div>
-                  <div className="text-sm font-semibold text-[#1A2E1A]">{day.dayNum}</div>
-                </div>
-
-                {/* Slots */}
-                {day.slots.map((slot: any, j: number) => (
-                  <button
-                    key={j}
-                    disabled={!slot.available}
-                    onClick={() => {
-                      setSelectedSlot({ ...slot, date: day.date });
-                      setPageView('confirm');
-                    }}
-                    className={`py-1.5 text-[11px] font-mono tracking-wide border transition-all ${
-                      !slot.available
-                        ? 'border-[rgba(0,80,40,0.08)] text-[#000] bg-[#EDE8DC] cursor-not-allowed'
-                        : selectedSlot?.datetime === slot.datetime
-                        ? 'border-[#007A40] bg-[#007A40] text-[#F5F0E8]'
-                        : 'border-[rgba(0,80,40,0.18)] text-[#3D5C3D] hover:border-[#007A40] hover:text-[#007A40] bg-[#F5F0E8]'
-                    }`}
-                  >
-                    {slot.available ? slot.time : '--'}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
-        </>
-        )}
-      </div>
-    </div>
-  );
-
+  // ── Confirm booking — full page overlay ───────────────────────────────────
   if (pageView === 'confirm') return (
     <div className="min-h-screen bg-[#edf1f7] flex items-center justify-center p-4">
       <div className="w-full max-w-[440px] border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8]">
         <div className="px-5 py-3 border-b border-[rgba(0,80,40,0.18)] flex items-center justify-between">
           <span className="text-[10px] text-[#7A9A7A] tracking-widest uppercase">// confirm booking</span>
-          <button onClick={() => setPageView('booking')} className="text-[#7A9A7A] text-xs">← back</button>
+          <button onClick={() => setPageView('tabs')} className="text-[#7A9A7A] text-xs">← back</button>
         </div>
-
         <div className="p-5 flex flex-col gap-4">
-          {/* Selected slot */}
           <div className="p-3 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)]">
             <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">selected time</div>
-            <div className="text-sm font-semibold text-[#1A2E1A]">
-              {selectedSlot?.date} at {selectedSlot?.time}
-            </div>
+            <div className="text-sm font-semibold text-[#1A2E1A]">{selectedSlot?.date} at {selectedSlot?.time}</div>
             <div className="text-[11px] text-[#7A9A7A] font-mono mt-0.5">
               with {provider?.name}{provider?.credentials ? `, ${provider.credentials}` : ''}
             </div>
           </div>
-
-          {/* Name */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">your name *</label>
-            <input
-              type="text"
-              value={bookingForm.name}
-              onChange={e => setBookingForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="Full name"
-              className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all"
-            />
-          </div>
-
-          {/* Email */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">your email *</label>
-            <input
-              type="email"
-              value={bookingForm.email}
-              onChange={e => setBookingForm(f => ({ ...f, email: e.target.value }))}
-              placeholder="email@example.com"
-              className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all"
-            />
-          </div>
+          {['name','email'].map(field => (
+            <div key={field} className="flex flex-col gap-1.5">
+              <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">
+                {field === 'name' ? 'your name *' : 'your email *'}
+              </label>
+              <input
+                type={field === 'email' ? 'email' : 'text'}
+                value={bookingForm[field as 'name' | 'email']}
+                onChange={e => setBookingForm(f => ({ ...f, [field]: e.target.value }))}
+                placeholder={field === 'name' ? 'Full name' : 'email@example.com'}
+                className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all"
+              />
+            </div>
+          ))}
           {provider?.profile?.accepts_insurance && (
             <div className="flex flex-col gap-2">
               <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">payment type</label>
-              <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="payment_type"
-                    value="self_pay"
-                    checked={bookingForm.payment_type === 'self_pay'}
-                    onChange={() => setBookingForm(f => ({ ...f, payment_type: 'self_pay', insurance_carrier: '' }))}
+              {(['self_pay','insurance'] as const).map(pt => (
+                <label key={pt} className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="payment_type" value={pt}
+                    checked={bookingForm.payment_type === pt}
+                    onChange={() => setBookingForm(f => ({ ...f, payment_type: pt, insurance_carrier: '' }))}
                     className="accent-[#007A40]"
                   />
-                  <span className="font-mono text-[13px] text-[#1A2E1A]">Self-pay</span>
+                  <span className="font-mono text-[13px] text-[#1A2E1A]">
+                    {pt === 'self_pay' ? 'Self-pay' : 'Insurance'}
+                  </span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="payment_type"
-                    value="insurance"
-                    checked={bookingForm.payment_type === 'insurance'}
-                    onChange={() => setBookingForm(f => ({ ...f, payment_type: 'insurance' }))}
-                    className="accent-[#007A40]"
-                  />
-                  <span className="font-mono text-[13px] text-[#1A2E1A]">Insurance</span>
-                </label>
-              </div>
+              ))}
             </div>
           )}
-          {/* Carrier dropdown — only when insurance selected */}
           {bookingForm.payment_type === 'insurance' && (
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">insurance carrier</label>
@@ -382,30 +234,20 @@ export default function ProviderRoomPage() {
                 className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] focus:outline-none focus:border-[#007A40]"
               >
                 <option value="">Select carrier...</option>
-                {provider?.profile?.insurance_networks?.map((network: string) => (
-                  <option key={network} value={network}>{network}</option>
-                ))}
+                {provider?.profile?.insurance_networks?.map(n => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
           )}
-
-          {/* Fee line — replace existing session fee block */}
           {bookingForm.payment_type === 'insurance' ? (
             <div className="text-[11px] text-[#7A9A7A] font-mono p-3 border border-[rgba(0,80,40,0.18)] bg-[#EDE8DC]">
               // copay collected at session start — amount set by provider
             </div>
           ) : provider?.profile?.session_cost ? (
             <div className="text-[11px] text-[#7A9A7A] font-mono p-3 border border-[rgba(0,80,40,0.18)] bg-[#EDE8DC]">
-              // session fee: <span className="text-[#1A2E1A]">${provider.profile.session_cost}</span>
-              {' '}— collected at session start
+              // session fee: <span className="text-[#1A2E1A]">${provider.profile.session_cost}</span> — collected at session start
             </div>
           ) : null}
-          
-
-          {error && (
-            <div className="text-[11px] text-[#CC2200] font-mono">// error: {error}</div>
-          )}
-
+          {error && <div className="text-[11px] text-[#CC2200] font-mono">// error: {error}</div>}
           <button
             onClick={handleBook}
             disabled={booking || !bookingForm.name || !bookingForm.email}
@@ -422,6 +264,7 @@ export default function ProviderRoomPage() {
     </div>
   );
 
+  // ── Booked confirmation — full page ───────────────────────────────────────
   if (pageView === 'booked') return (
     <div className="min-h-screen bg-[#edf1f7] flex items-center justify-center p-4">
       <div className="w-full max-w-[440px] border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8]">
@@ -435,26 +278,17 @@ export default function ProviderRoomPage() {
           </p>
           <div className="p-3 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)]">
             <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase mb-1">your session</div>
-            <div className="text-sm font-semibold text-[#1A2E1A]">
-              {selectedSlot?.date} at {selectedSlot?.time}
-            </div>
-            <div className="text-[11px] text-[#7A9A7A] font-mono mt-0.5">
-              with {provider?.name}
-            </div>
+            <div className="text-sm font-semibold text-[#1A2E1A]">{selectedSlot?.date} at {selectedSlot?.time}</div>
+            <div className="text-[11px] text-[#7A9A7A] font-mono mt-0.5">with {provider?.name}</div>
           </div>
           <p className="text-[11px] text-[#7A9A7A] font-mono">
-            // check your email for the session link
-            <br />// link activates 10 minutes before your appointment
+            // check your email for the session link<br />
+            // link activates 10 minutes before your appointment
           </p>
           <button
-            onClick={() => {
-              setPageView('profile');
-              setSelectedSlot(null);
-              setBookingForm(initialState);
-              setBookedAppt(null);
-            }}
+            onClick={() => { setPageView('tabs'); setActiveTab('profile'); setSelectedSlot(null); setBookingForm(initialBookingForm); }}
             className="w-full py-3 border border-[rgba(0,80,40,0.18)] text-[10px] tracking-widest uppercase text-[#7A9A7A] hover:text-[#1A2E1A] transition-all"
-            >
+          >
             done
           </button>
         </div>
@@ -462,196 +296,247 @@ export default function ProviderRoomPage() {
     </div>
   );
 
+  // ── Main tabbed view ─────────────────────────────────────────────────────
   return (
-      
-    <div className="min-h-screen bg-[#edf1f7] flex items-center justify-center p-4">
-      <div className="w-full max-w-[480px] flex flex-col gap-4">
+    <div className="min-h-screen bg-[#edf1f7] items-center flex flex-col w-full">
 
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-2">
+      {/* Top nav */}
+      <div className="max-w-[608px] mx-auto w-full  flex items-center justify-between px-5 py-3 bg-[#edf1f7] border-b border-[rgba(0,80,40,0.18)]">
+        <div className="flex items-center gap-3">
           <span className="border border-[rgba(0,80,40,0.30)] px-2 py-0.5 text-[#007A40] text-xs font-bold tracking-wider">IR</span>
-          <span className="text-sm tracking-widest uppercase text-[#1A2E1A] font-mono">
-            InstaRoom
-          </span>
+          <span className="text-sm tracking-widest uppercase text-[#1A2E1A] font-mono">InstaRoom</span>
         </div>
+        <span className="text-[10px] font-mono text-[#7A9A7A]">instaroom.link/rm/{slug}</span>
+      </div>
 
-        {/* Provider profile */}
-        <div className="border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8] p-5 flex flex-col gap-2">
-          <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase">
-            // provider
-          </div>
-          <div className="text-xl font-semibold text-[#1A2E1A]">
-            {provider?.name}
-            {provider?.credentials && (
-              <span className="text-[#007A40] ml-2 text-sm">{provider.credentials}</span>
-            )}
-          </div>
-          {(provider?.profile?.focus_areas?.length ?? 0) > 0 && (
-            <div className="text-sm text-[#7A9A7A] font-mono">
-              {provider?.profile?.focus_areas.slice(0, 3).join(', ')}
-            </div>
-          )}
-          <div className="flex items-center gap-1.5 mt-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#007A40] animate-pulse" />
-            <span className="text-[11px] text-[#007A40] font-mono tracking-widest">
-               accepting telehealth visits
-            </span>
-          </div>
-          {(provider?.licensed_states?.length ?? 0) > 0 && (
-            <div className="text-[10px] text-[#7A9A7A] font-mono mt-1">
-              Licensed in: {provider?.licensed_states.join(', ')}
-            </div>
-          )}
+      {/* Fixed tab bar */}
+      <div className="sticky max-w-[608px] mx-auto w-full top-0 z-10 bg-[#F5F0E8] border-b border-[rgba(0,80,40,0.18)]">
+        <div className="max-w-[608px] mx-auto flex w-full">
+          {(['profile','book','room'] as ActiveTab[]).map(tab => (
+            <button
+              key={tab}
+              onClick={() => handleTabSwitch(tab)}
+              className={`flex-1 py-3 text-[10px] tracking-widest uppercase font-mono transition-all border-b-2 ${
+                activeTab === tab
+                  ? 'border-[#007A40] text-[#007A40] bg-[rgba(0,122,64,0.06)]'
+                  : 'border-transparent text-[#7A9A7A] hover:text-[#007A40]'
+              }`}
+            >
+              {tab === 'profile' ? 'Profile' : tab === 'book' ? 'Book' : 'Room'}
+            </button>
+          ))}
         </div>
+      </div>
 
-        {provider?.profile && (
-          <div className="border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8] p-5 flex flex-col gap-3">
-            
-            {provider.profile?.bio && (
-              <p className="text-sm text-[#3D5C3D] font-mono leading-relaxed">
-                {provider.profile.bio}
-              </p>
-            )}
+      {/* Tab content */}
+      <div className="flex-1 overflow-y-auto w-full">
 
-          {provider.profile.hours_of_operation && (
-            <div className="flex items-center gap-2 text-[11px] font-mono text-[#7A9A7A]">
-              <span>// hours:</span>
-              <span className="text-[#1A2E1A]">{provider.profile.hours_of_operation}</span>
-            </div>
-          )}
+        {/* ── Profile tab ── */}
+        {activeTab === 'profile' && (
+          <div className="max-w-[640px] mx-auto p-4 flex flex-col gap-4 w-full">
 
-          {provider.profile.phone && (
-            <div className="flex items-center gap-2 text-[11px] font-mono text-[#7A9A7A]">
-              <span>// phone:</span>
-              <a href={`tel:${provider.profile.phone}`} className="text-[#007A40]">
-                {provider.profile.phone}
-              </a>
-            </div>
-          )}
-
-          {/* Payment types */}
-          <div className="flex flex-wrap gap-2 mt-1">
-            {provider.profile.accepts_selfpay && (
-              <span className="px-2 py-0.5 border border-[rgba(0,80,40,0.18)] text-[10px] font-mono text-[#7A9A7A] tracking-widest">
-                self-pay
-              </span>
-            )}
-            {provider.profile.accepts_insurance && (
-              <span className="px-2 py-0.5 border border-[rgba(0,80,40,0.18)] text-[10px] font-mono text-[#7A9A7A] tracking-widest">
-                insurance
-              </span>
-            )}
-            {provider.profile.accepts_sliding && (
-              <span className="px-2 py-0.5 border border-[rgba(0,80,40,0.18)] text-[10px] font-mono text-[#7A9A7A] tracking-widest">
-                sliding scale
-              </span>
-            )}
-            </div>
-            
-            {(provider.profile.session_cost || provider.profile.slot_duration) && (
-              <div className="flex items-center gap-4 text-[11px] font-mono text-[#7A9A7A]">
-                {provider.profile.session_cost && (
-                  <span>// session: <span className="text-[#1A2E1A]">${provider.profile.session_cost}</span></span>
-                )}
-                {provider.profile.slot_duration && (
-                  <span>// duration: <span className="text-[#1A2E1A]">{provider.profile.slot_duration} min</span></span>
-                )}
+            {/* Provider card */}
+            <div className="border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8] p-5 flex flex-col gap-2">
+              <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase">// provider</div>
+              <div className="text-xl font-semibold text-[#1A2E1A]">
+                {provider?.name}
+                {provider?.credentials && <span className="text-[#007A40] ml-2 text-sm">{provider.credentials}</span>}
               </div>
-            )}
-
-            {(provider.profile.accepts_insurance && 
-              provider.profile.insurance_networks!.length > 0) && (
-              <div className="flex gap-2 flex-wrap">
-                <span className="font-mono text-[11px] text-[#7A9A7A]">// insurance:</span>
-                <span className="font-mono text-[11px] text-[#3D5C3D]">
-                  {provider.profile.insurance_networks!.join(', ')}
-                </span>
-              </div>
-            )}
-          
-            
-
-          {provider.profile.certifications?.length > 0 && (
-            <div className="text-[10px] text-[#7A9A7A] font-mono">
-              // certifications: {provider.profile.certifications.join(', ')}
-            </div>
-          )}
-        </div>
-      )}
-
-        <button
-          onClick={() => {
-            fetchSlots();
-            setPageView('booking');
-          }}
-          className="w-full py-3 border border-[#007A40] text-xs tracking-widest uppercase text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8] transition-all mb-3"
-          >
-          [ book a session ]
-        </button>
-
-        <div className="flex items-center gap-3 mb-3">
-          <div className="flex-1 h-px bg-[rgba(0,80,40,0.12)]" />
-          <span className="text-[10px] text-[#7A9A7A] tracking-widest">or</span>
-          <div className="flex-1 h-px bg-[rgba(0,80,40,0.12)]" />
-        </div>
-
-        {/* Waiting room card */}
-        <div className="border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8] p-5 flex flex-col gap-4">
-          <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase">
-            virtual waiting room
-          </div>
-
-          {waiting ? (
-            <div className="flex flex-col gap-3">
-              <div className="text-sm font-semibold text-[#1A2E1A]">
-                You&apos;re checked in, {patientName}
-              </div>
-              <p className="text-[11px] text-[#7A9A7A] font-mono">
-                {provider?.name} will be with you shortly. Please keep this window open.
-              </p>
-              <div className="flex items-center gap-2 text-[11px] text-[#007A40] font-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#007A40] animate-pulse" />
-                waiting for provider...
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="text-sm text-[#3D5C3D] font-mono">
-                Enter your name to check in for your session.
-              </div>
-
-              <input
-                type="text"
-                value={patientName}
-                onChange={e => setPatientName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleCheckIn()}
-                placeholder="Your full name"
-                className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all"
-              />
-
-              {error && (
-                <div className="text-[11px] text-[#CC2200] font-mono">// {error}</div>
+              {(provider?.profile?.focus_areas?.length ?? 0) > 0 && (
+                <div className="text-sm text-[#7A9A7A] font-mono">
+                  {provider?.profile?.focus_areas.slice(0, 3).join(', ')}
+                </div>
               )}
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#007A40] animate-pulse" />
+                <span className="text-[11px] text-[#007A40] font-mono tracking-widest">accepting telehealth visits</span>
+              </div>
+              {(provider?.licensed_states?.length ?? 0) > 0 && (
+                <div className="text-[10px] text-[#7A9A7A] font-mono mt-1">
+                  Licensed in: {provider?.licensed_states.join(', ')}
+                </div>
+              )}
+            </div>
 
-              <button
-                onClick={handleCheckIn}
-                disabled={checking}
-                className={`w-full py-3 text-xs tracking-widest uppercase transition-all ${
-                  checking
-                    ? 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] cursor-not-allowed'
-                    : 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]'
-                }`}
-              >
-                {checking ? '// checking in...' : '[ enter waiting room ]'}
-              </button>
-            </>
-          )}
-        </div>
+            {/* Profile details */}
+            {provider?.profile && (
+              <div className="border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8] p-5 flex flex-col gap-3">
+                {provider.profile.bio && (
+                  <p className="text-sm text-[#3D5C3D] font-mono leading-relaxed">{provider.profile.bio}</p>
+                )}
+                {provider.profile.hours_of_operation && (
+                  <div className="flex items-center gap-2 text-[11px] font-mono text-[#7A9A7A]">
+                    <span>// hours:</span>
+                    <span className="text-[#1A2E1A]">{provider.profile.hours_of_operation}</span>
+                  </div>
+                )}
+                {provider.profile.phone && (
+                  <div className="flex items-center gap-2 text-[11px] font-mono text-[#7A9A7A]">
+                    <span>// phone:</span>
+                    <a href={`tel:${provider.profile.phone}`} className="text-[#007A40]">{provider.profile.phone}</a>
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {provider.profile.accepts_selfpay && (
+                    <span className="px-2 py-0.5 border border-[rgba(0,80,40,0.18)] text-[10px] font-mono text-[#7A9A7A] tracking-widest">self-pay</span>
+                  )}
+                  {provider.profile.accepts_insurance && (
+                    <span className="px-2 py-0.5 border border-[rgba(0,80,40,0.18)] text-[10px] font-mono text-[#7A9A7A] tracking-widest">insurance</span>
+                  )}
+                  {provider.profile.accepts_sliding && (
+                    <span className="px-2 py-0.5 border border-[rgba(0,80,40,0.18)] text-[10px] font-mono text-[#7A9A7A] tracking-widest">sliding scale</span>
+                  )}
+                </div>
+                {(provider.profile.session_cost || provider.profile.slot_duration) && (
+                  <div className="flex items-center gap-4 text-[11px] font-mono text-[#7A9A7A]">
+                    {provider.profile.session_cost && (
+                      <span>// session: <span className="text-[#1A2E1A]">${provider.profile.session_cost}</span></span>
+                    )}
+                    {provider.profile.slot_duration && (
+                      <span>// duration: <span className="text-[#1A2E1A]">{provider.profile.slot_duration} min</span></span>
+                    )}
+                  </div>
+                )}
+                {provider.profile.accepts_insurance && (provider.profile.insurance_networks?.length ?? 0) > 0 && (
+                  <div className="flex gap-2 flex-wrap">
+                    <span className="font-mono text-[11px] text-[#7A9A7A]">// insurance:</span>
+                    <span className="font-mono text-[11px] text-[#3D5C3D]">{provider.profile.insurance_networks!.join(', ')}</span>
+                  </div>
+                )}
+                {provider.profile.certifications?.length > 0 && (
+                  <div className="text-[10px] text-[#7A9A7A] font-mono">
+                    // certifications: {provider.profile.certifications.join(', ')}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
-        {/* Footer */}
-        <div className="text-center text-[10px] text-[#7A9A7A] font-mono tracking-widest">
-          powered by instaroom.link
-        </div>
+        {/* ── Book tab ── */}
+        {activeTab === 'book' && (
+          <div className="max-w-[640px] mx-auto p-4 flex flex-col gap-4">
+
+            {/* Provider mini header */}
+            <div className="border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8] px-4 py-3 flex items-center gap-3">
+              <span className="text-sm font-semibold text-[#1A2E1A]">{provider?.name}</span>
+              {provider?.credentials && <span className="text-[#007A40] text-xs">{provider.credentials}</span>}
+              {provider?.profile?.session_cost && (
+                <span className="ml-auto text-[11px] text-[#7A9A7A] font-mono">
+                  ${provider.profile.session_cost} / {provider.profile.slot_duration || 50} min
+                </span>
+              )}
+            </div>
+
+            {slotsLoading ? (
+              <p className="text-[11px] text-[#7A9A7A] tracking-widest font-mono">// loading slots...</p>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={handlePrevWeek}
+                    disabled={weekOffset === 0}
+                    className={`text-[10px] tracking-widest uppercase font-mono px-3 py-1.5 border transition-all ${
+                      weekOffset === 0
+                        ? 'border-[rgba(0,80,40,0.08)] text-[rgba(0,80,40,0.2)] cursor-not-allowed'
+                        : 'border-[rgba(0,80,40,0.18)] text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40]'
+                    }`}
+                  >← prev</button>
+                  <span className="text-[10px] text-[#7A9A7A] font-mono tracking-widest">
+                    {slots.length > 0 ? `${slots[0].date.split(',')[1]?.trim()} — ${slots[6]?.date.split(',')[1]?.trim()}` : ''}
+                  </span>
+                  <button
+                    onClick={handleNextWeek}
+                    className="text-[10px] tracking-widest uppercase font-mono px-3 py-1.5 border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] hover:border-[#007A40] hover:text-[#007A40] transition-all"
+                  >next →</button>
+                </div>
+
+                <div className="grid grid-cols-7 gap-1 bg-[rgba(0,80,40,0.08)] p-1">
+                  {slots.map((day, i) => (
+                    <div key={i} className="flex flex-col gap-1">
+                      <div className="bg-[#EDE8DC] px-1 py-2 text-center border border-[rgba(0,80,40,0.18)]">
+                        <div className="text-[9px] text-[#7A9A7A] tracking-widest uppercase font-mono">{day.weekday}</div>
+                        <div className="text-sm font-semibold text-[#1A2E1A]">{day.dayNum}</div>
+                      </div>
+                      {day.slots.map((slot: any, j: number) => (
+                        <button
+                          key={j}
+                          disabled={!slot.available}
+                          onClick={() => {
+                            setSelectedSlot({ ...slot, date: day.date });
+                            setPageView('confirm');
+                          }}
+                          className={`py-1.5 text-[11px] font-mono tracking-wide border transition-all ${
+                            !slot.available
+                              ? 'border-[rgba(0,80,40,0.08)] text-[#000] bg-[#EDE8DC] cursor-not-allowed'
+                              : selectedSlot?.datetime === slot.datetime
+                              ? 'border-[#007A40] bg-[#007A40] text-[#F5F0E8]'
+                              : 'border-[rgba(0,80,40,0.18)] text-[#3D5C3D] hover:border-[#007A40] hover:text-[#007A40] bg-[#F5F0E8]'
+                          }`}
+                        >
+                          {slot.available ? slot.time : '--'}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Room tab ── */}
+        {activeTab === 'room' && (
+          <div className="max-w-[640px] mx-auto p-4">
+            <div className="border border-[rgba(0,80,40,0.18)] bg-[#F5F0E8] p-5 flex flex-col gap-4">
+              <div className="text-[10px] text-[#7A9A7A] tracking-widest uppercase">virtual waiting room</div>
+
+              {waiting ? (
+                <div className="flex flex-col gap-3">
+                  <div className="text-sm font-semibold text-[#1A2E1A]">You&apos;re checked in, {patientName}</div>
+                  <p className="text-[11px] text-[#7A9A7A] font-mono">
+                    {provider?.name} will be with you shortly. Please keep this window open.
+                  </p>
+                  <div className="flex items-center gap-2 text-[11px] text-[#007A40] font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#007A40] animate-pulse" />
+                    waiting for provider...
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="text-sm text-[#3D5C3D] font-mono">
+                    Enter your name to check in for your session.
+                  </div>
+                  <input
+                    type="text"
+                    value={patientName}
+                    onChange={e => setPatientName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleCheckIn()}
+                    placeholder="Your full name"
+                    className="px-3 py-2 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)] text-sm font-mono text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none focus:border-[#007A40] transition-all"
+                  />
+                  {error && <div className="text-[11px] text-[#CC2200] font-mono">// {error}</div>}
+                  <button
+                    onClick={handleCheckIn}
+                    disabled={checking}
+                    className={`w-full py-3 text-xs tracking-widest uppercase transition-all ${
+                      checking
+                        ? 'border border-[rgba(0,80,40,0.18)] text-[#7A9A7A] cursor-not-allowed'
+                        : 'border border-[#007A40] text-[#007A40] hover:bg-[#007A40] hover:text-[#F5F0E8]'
+                    }`}
+                  >
+                    {checking ? '// checking in...' : '[ enter waiting room ]'}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="text-center text-[10px] text-[#7A9A7A] font-mono tracking-widest py-4 border-t border-[rgba(0,80,40,0.08)]">
+        powered by instaroom.link
       </div>
     </div>
   );

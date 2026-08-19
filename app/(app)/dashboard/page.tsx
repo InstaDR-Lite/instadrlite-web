@@ -55,9 +55,7 @@ export default function DashboardPage() {
         }));
         
         setAppointments(appts);
-        console.log('DashboardPage today:', appts);
         const waiting = appts.filter((a: any) => a.status === 'ready' || a.status === 'checking_in');
-        console.log('DashboardPage waiting:', waiting.length);
         setWaitingCount(waiting.length);
         
         // 💡 Functional state update bypasses the stale closure trap entirely
