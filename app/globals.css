@@ -3,7 +3,7 @@
 
 :root {
   --color-bg:               #edf1f7;
-  --color-surface:          #EDE8DC;
+  /* --color-surface:          #EDE8DC; */
   --color-surface-2:        #E4DED0;
   --color-surface-3:        #D8D0C0;
   --color-border:           rgba(0, 80, 40, 0.18);
