@@ -7,6 +7,7 @@ import SettingsModal from '@/components/settings/SettingsModal';
 import { Suspense } from 'react';
 import TopNav from '@/components/layout/TopNav';
 import { DashboardProvider } from '@/context/DashboardContext';
+import MobileNav from '@/components/MobileNav';
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 
@@ -133,59 +134,60 @@ function Sidebar({
   const initial = provider?.name?.[0]?.toUpperCase() ?? 'P';
 
   return (
-    <aside className="fixed top-[54px] left-0 h-[calc(100vh-54px)] w-[56px] z-50
-                      flex flex-col items-center py-4 gap-2
-                      bg-[#edf1f7] border-r border-[rgba(0,80,40,0.18)]">
-
-
+    <>
       <TopNav provider={provider}/>
+      <aside className=" hidden md:flex fixed top-[54px] left-0 h-[calc(100vh-54px)] w-[56px] z-50
+                    flex-col items-center py-4 gap-2
+                    bg-[#edf1f7] border-r border-[rgba(0,80,40,0.18)]">
 
-      {/* Nav items */}
-      <nav className="flex flex-col items-center gap-4 flex-1">
-        {NAV_ITEMS.map(item => {
-          const isActive = pathname === item.href ||
-            (item.href !== '/dashboard' && pathname.startsWith(item.href));
 
-          return (
-            <div key={item.href} className="relative group">
-              <button
-                onClick={() => router.push(item.href)}
-                className={`w-9 h-9 flex items-center justify-center
-                            border transition-all
-                            ${isActive
-                              ? 'border-[#007A40] text-[#007A40] bg-[rgba(0,122,64,0.08)]'
-                              : 'border-transparent text-[#7A9A7A] hover:border-[rgba(0,80,40,0.18)] hover:text-[#007A40]'
-                            }`}
-              >
-                {item.icon}
-              </button>
-              <Tooltip label={item.label} />
-            </div>
-          );
-        })}
-      </nav>
+        {/* Nav items */}
+        <nav className="flex flex-col items-center gap-4 flex-1">
+          {NAV_ITEMS.map(item => {
+            const isActive = pathname === item.href ||
+              (item.href !== '/dashboard' && pathname.startsWith(item.href));
 
-      {/* Account avatar — bottom */}
-      <div className="relative">
-        <button
-          onClick={() => setShowPopup(p => !p)}
-          className="w-9 h-9 flex items-center justify-center
-                     border border-[rgba(0,80,40,0.18)] text-[#007A40]
-                     text-[11px] font-bold font-mono
-                     hover:border-[#007A40] transition-all bg-[rgba(0,122,64,0.06)]"
-        >
-          {initial}
-        </button>
+            return (
+              <div key={item.href} className="relative group">
+                <button
+                  onClick={() => router.push(item.href)}
+                  className={`w-9 h-9 flex items-center justify-center
+                              border transition-all
+                              ${isActive
+                                ? 'border-[#007A40] text-[#007A40] bg-[rgba(0,122,64,0.08)]'
+                                : 'border-transparent text-[#7A9A7A] hover:border-[rgba(0,80,40,0.18)] hover:text-[#007A40]'
+                              }`}
+                >
+                  {item.icon}
+                </button>
+                <Tooltip label={item.label} />
+              </div>
+            );
+          })}
+        </nav>
 
-        {showPopup && (
-          <AccountPopup
-            provider={provider}
-            onSettings={onSettingsOpen}
-            onClose={() => setShowPopup(false)}
-          />
-        )}
-      </div>
-    </aside>
+        {/* Account avatar — bottom */}
+        <div className="hidden md:flex relative">
+          <button
+            onClick={() => setShowPopup(p => !p)}
+            className="w-9 h-9 flex items-center justify-center
+                      border border-[rgba(0,80,40,0.18)] text-[#007A40]
+                      text-[11px] font-bold font-mono
+                      hover:border-[#007A40] transition-all bg-[rgba(0,122,64,0.06)]"
+          >
+            {initial}
+          </button>
+
+          {showPopup && (
+            <AccountPopup
+              provider={provider}
+              onSettings={onSettingsOpen}
+              onClose={() => setShowPopup(false)}
+            />
+          )}
+        </div>
+      </aside>
+    </>
   );
 }
 
@@ -254,20 +256,24 @@ function DashboardLayoutSidebarInner({
 
   return (
     <div className="min-h-screen bg-[#edf1f7]">
-      
-      <Sidebar onSettingsOpen={() => setShowSettings(true)} />
+    <Sidebar onSettingsOpen={() => setShowSettings(true)} />
+    
+    <MobileNav onSettingsOpen={() => setShowSettings(true)} />
 
-      {/* Main content — offset by sidebar width */}
-      <main className="pl-[56px] pt-[56px] h-screen">
-        {children}
-      </main>
+    <main className="md:pl-[56px] pt-[54px] h-screen pb-24 md:pb-0">
+      {children}
+    </main>
 
-      {showSettings && (
-        <SettingsModal
-          defaultTab={defaultTab as any}
-          onClose={() => setShowSettings(false)}
-        />
-      )}
-    </div>
+    {showSettings && (
+      <SettingsModal
+        defaultTab={defaultTab as any}
+        onClose={() => setShowSettings(false)}
+      />
+    )}
+  </div>
   );
 }
+
+
+
+

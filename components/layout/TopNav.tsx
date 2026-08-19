@@ -40,7 +40,7 @@ export default function TopNav({ provider}: TopNavProps) {
         </div>
 
         {provider?.slug && (
-          <div className="flex items-center gap-2 border border-[rgba(0,80,40,0.18)] px-3 py-1">
+          <div className="hidden md:flex flex items-center gap-2 border border-[rgba(0,80,40,0.18)] px-3 py-1">
             <span className="text-[10px] font-mono text-[#3D5C3D]">
               instaroom.link/rm/{provider.slug}
             </span>
