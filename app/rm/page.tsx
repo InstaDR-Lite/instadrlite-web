@@ -31,7 +31,7 @@ export default function RoomFinderPage() {
         {/* Header */}
         <div className="flex items-center px-2">
         <Image
-          src="/logo/instaroom-wordmark-8-currentcolor.svg"
+          src="/instaroom-wordmark-8-currentcolor.svg"
           alt="InstaRoom logo"
           width={122}
           height={30}
