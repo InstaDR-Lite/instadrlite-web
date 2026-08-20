@@ -314,7 +314,7 @@ export default function ProviderRoomPage() {
       {/* Top nav */}
       <div className="max-w-[608px] mx-auto w-full  flex items-center justify-between px-2 py-3 bg-[#edf1f7] border-b border-[rgba(0,80,40,0.18)]">
         <Image
-          src="/logo/instaroom-wordmark-8-currentcolor.svg"
+          src="/images/logo/instaroom-wordmark-8-currentcolor.svg"
           alt="InstaRoom logo"
           width={122}
           height={30}
