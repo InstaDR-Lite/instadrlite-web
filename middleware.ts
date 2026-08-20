@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const PUBLIC_ROUTES = ['/login', '/signup', '/onboarding', '/room', '/rm'];
+const PUBLIC_ROUTES = ['/login', '/signup', '/onboarding', '/room', '/rm', '/images'];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -12,7 +12,7 @@ export function middleware(req: NextRequest) {
       pathname.startsWith('/icons/')) {
     return NextResponse.next();
   }
-  
+
   // Add slug pattern check:
   if (pathname.match(/^\/[a-z0-9.-]+$/) && !pathname.startsWith('/dashboard')) {
     return NextResponse.next();
