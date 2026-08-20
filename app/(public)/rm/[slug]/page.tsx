@@ -6,7 +6,7 @@ import ProfileTab from '@/components/rm/ProfileTab';
 import Image from 'next/image';
 
 interface ProviderProfile {
-avatar_url?:         string;
+    avatar_url?:         string;
     bio?:                string;
     phone?:              string;
     hours_of_operation?: string;

@@ -12,25 +12,36 @@ export default function ProfileTab() {
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState(false);
   const [saved,    setSaved]    = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [uploading, setUploading] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
-      credentials: 'include'
-    })
-    .then(r => r.json())
-    .then(d => {
-      setProvider(d.provider);
-      setForm({
-        name:            d.provider.name        || '',
-        credentials:     d.provider.credentials || '',
-        npi:             d.provider.npi          || '',
-        specialty:       d.provider.specialty    || '',
-        slug:            d.provider.slug         || '',
-        licensed_states: d.provider.licensed_states || [],
-      });
-      setLoading(false);
-    });
+    const load = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+          credentials: 'include'
+        });
+        const d = await res.json();
+        setProvider(d.provider);
+        setAvatarUrl(d.provider.profile?.avatar_url || null);
+        setForm({
+          name:            d.provider.name             || '',
+          credentials:     d.provider.credentials      || '',
+          npi:             d.provider.npi               || '',
+          specialty:       d.provider.specialty         || '',
+          slug:            d.provider.slug              || '',
+          licensed_states: d.provider.licensed_states  || [],
+        });
+        setLoading(false);
+      } catch (err) {
+        console.error('[ProfileTab] Load failed', err);
+        setLoading(false);
+      }
+      };
+
+      load();
   }, []);
 
   const toggleState = (state: string) => {
@@ -40,6 +51,28 @@ export default function ProfileTab() {
         ? f.licensed_states.filter((s: string) => s !== state)
         : [...f.licensed_states, state]
     }));
+  };
+
+  // Upload handler
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload/avatar`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) setAvatarUrl(data.url);
+    } catch (err) {
+      console.error('[Avatar] Upload failed', err);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -76,6 +109,44 @@ export default function ProfileTab() {
         <div className="text-lg font-semibold text-[#1A2E1A]">Your Profile</div>
       </div>
 
+      {/* Avatar upload */}
+      <div className="flex items-center gap-4">
+        {/* Avatar preview */}
+        <div className="w-16 h-16 rounded-full border-2 border-[rgba(0,80,40,0.18)] 
+                        bg-[rgba(0,122,64,0.08)] flex items-center justify-center 
+                        overflow-hidden flex-shrink-0">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+          ) : (
+            <span className="font-mono text-lg font-semibold text-[#007A40]">
+              {provider?.name?.[0]?.toUpperCase() ?? 'P'}
+            </span>
+          )}
+        </div>
+
+        {/* Upload button */}
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">
+            profile photo
+          </label>
+          <label className="cursor-pointer inline-flex items-center px-3 py-1.5
+                            border border-[rgba(0,80,40,0.18)] text-[10px] tracking-widest 
+                            uppercase text-[#7A9A7A] font-mono hover:border-[#007A40] 
+                            hover:text-[#007A40] transition-all">
+            {uploading ? '// uploading...' : '⚡ upload photo'}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarUpload}
+              className="hidden"
+            />
+          </label>
+          <span className="text-[9px] font-mono text-[#7A9A7A]">
+            JPG, PNG — max 5MB
+          </span>
+        </div>
+      </div>
+      
       {/* Name */}
       <div className="flex flex-col gap-1.5">
         <label className="text-[10px] tracking-widest uppercase text-[#7A9A7A]">full name</label>

@@ -50,8 +50,10 @@ function Initials({ name, avatarUrl }: { name: string; avatarUrl?: string }) {
 
   if (avatarUrl) {
     return (
-      <Image
+      <img
         src={avatarUrl}
+        height={100}
+        width={100}
         alt={name}
         className="w-16 h-16 rounded-full object-cover border-2 border-[rgba(0,80,40,0.18)] flex-shrink-0"
       />
