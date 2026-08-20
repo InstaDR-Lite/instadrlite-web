@@ -5,6 +5,14 @@ const PUBLIC_ROUTES = ['/login', '/signup', '/onboarding', '/room', '/rm'];
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Allow static assets
+  if (pathname.startsWith('/images/') || 
+      pathname.startsWith('/logo/') ||
+      pathname.startsWith('/fonts/') ||
+      pathname.startsWith('/icons/')) {
+    return NextResponse.next();
+  }
+  
   // Add slug pattern check:
   if (pathname.match(/^\/[a-z0-9.-]+$/) && !pathname.startsWith('/dashboard')) {
     return NextResponse.next();
