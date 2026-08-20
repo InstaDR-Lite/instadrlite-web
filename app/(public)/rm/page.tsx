@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function RoomFinderPage() {
   const [roomSlug, setRoomSlug] = useState('');
@@ -28,13 +29,13 @@ export default function RoomFinderPage() {
       <div className="w-full max-w-[480px] flex flex-col gap-4">
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-2">
-          <span className="border border-[rgba(0,80,40,0.30)] px-2 py-0.5 text-[#007A40] text-xs font-bold tracking-wider">
-            IR
-          </span>
-          <span className="text-sm tracking-widest uppercase text-[#1A2E1A] font-mono">
-            InstaRoom
-          </span>
+        <div className="flex items-center px-2">
+        <Image
+          src="/logo/instaroom-wordmark-8-currentcolor.svg"
+          alt="InstaRoom logo"
+          width={122}
+          height={30}
+        />
         </div>
 
         {/* Enter room by slug */}
@@ -54,7 +55,7 @@ export default function RoomFinderPage() {
               value={roomSlug}
               onChange={e => { setRoomSlug(e.target.value); setError(''); }}
               onKeyDown={e => e.key === 'Enter' && handleEnterRoom()}
-              placeholder="dr-mann"
+              placeholder="dr-noah"
               className="flex-1 px-3 py-2.5 bg-transparent font-mono text-[13px]
                          text-[#1A2E1A] placeholder:text-[#7A9A7A] focus:outline-none"
             />
@@ -95,7 +96,7 @@ export default function RoomFinderPage() {
             type="text"
             value={searchName}
             onChange={e => setSearchName(e.target.value)}
-            placeholder="Dr. Carmelinda Mann"
+            placeholder="Noah ..."
             className="px-3 py-2.5 bg-[#EDE8DC] border border-[rgba(0,80,40,0.18)]
                        font-mono text-[13px] text-[#1A2E1A] placeholder:text-[#7A9A7A]
                        focus:outline-none focus:border-[#007A40] transition-all"

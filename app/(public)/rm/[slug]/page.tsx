@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ProfileTab from '@/components/rm/ProfileTab';
+import Image from 'next/image';
 
 interface ProviderProfile {
 avatar_url?:         string;
@@ -311,16 +312,18 @@ export default function ProviderRoomPage() {
     <div className="min-h-screen bg-[#edf1f7] items-center flex flex-col w-full">
 
       {/* Top nav */}
-      <div className="max-w-[608px] mx-auto w-full  flex items-center justify-between px-5 py-3 bg-[#edf1f7] border-b border-[rgba(0,80,40,0.18)]">
-        <div className="flex items-center gap-3">
-          <span className="border border-[rgba(0,80,40,0.30)] px-2 py-0.5 text-[#007A40] text-xs font-bold tracking-wider">IR</span>
-          <span className="text-sm tracking-widest uppercase text-[#1A2E1A] font-mono">InstaRoom</span>
-        </div>
-        <span className="text-[11px] font-mono ">instaroom.link/rm/{slug}</span>
+      <div className="max-w-[608px] mx-auto w-full  flex items-center justify-between px-2 py-3 bg-[#edf1f7] border-b border-[rgba(0,80,40,0.18)]">
+        <Image
+          src="/logo/instaroom-wordmark-8-currentcolor.svg"
+          alt="InstaRoom logo"
+          width={122}
+          height={30}
+        />
+        <span className="text-[11px] fontmono ">instaroom.link/rm/{slug}</span>
       </div>
 
       {/* Fixed tab bar */}
-      <div className="sticky max-w-[608px] mx-auto w-full top-0 z-10 bg-[#F5F0E8] border-b border-[rgba(0,80,40,0.18)]">
+      <div className="sticky max-w-[608px] mx-auto w-full top-0 z-10 bg-[#F5F0E8] border-b border-l border-r border-[rgba(0,80,40,0.18)]">
         <div className="max-w-[608px] mx-auto flex w-full">
           {(['profile','book','room'] as ActiveTab[]).map(tab => (
             <button
